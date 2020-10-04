@@ -65,11 +65,11 @@ DRF_API_LOGGER_DATABASE = True  # Default to False
 ```
 Logs will be available in Django Admin Panel.
 
-![Screenshot](logs.png)
+![Alt text](https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/logs.png?raw=true, "Logger")
 
-![Screenshot](lists.png)
+![Alt text](https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/lists.png?raw=true, "Lists")
 
-![Screenshot](details.png)
+![Alt text](https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/details.png?raw=true, "Detais")
 
 Note: Make sure to migrate. It will create a table for logger if "DRF_API_LOGGER_DATABASE" is True else if already exists, it will delete the table.
 
