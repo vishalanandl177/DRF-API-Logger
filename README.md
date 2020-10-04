@@ -1,5 +1,5 @@
 # DRF API Logger
-![version](https://img.shields.io/badge/version-0.0.1-blue.svg)
+![version](https://img.shields.io/badge/version-0.0.3-blue.svg)
 
 An API Logger for your Django Rest Framework project.
 
