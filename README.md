@@ -3,7 +3,7 @@
 
 An API Logger for your Django Rest Framework project.
 
-It logs all the API information for content type "application/json"".
+It logs all the API information for content type "application/json".
 1. URL
 2. Request Body
 3. Request Headers
@@ -63,6 +63,13 @@ Log every request into the database.
 ```python
 DRF_API_LOGGER_DATABASE = True  # Default to False
 ```
+Logs will be available in Django Admin Panel.
+
+![Screenshot](logs.png)
+
+![Screenshot](lists.png)
+
+![Screenshot](details.png)
 
 Note: Make sure to migrate. It will create a table for logger if "DRF_API_LOGGER_DATABASE" is True else if already exists, it will delete the table.
 
