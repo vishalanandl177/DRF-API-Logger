@@ -1,5 +1,5 @@
 # DRF API Logger
-![version](https://img.shields.io/badge/version-0.0.3-blue.svg)
+![version](https://img.shields.io/badge/version-0.0.4-blue.svg)
 
 An API Logger for your Django Rest Framework project.
 
@@ -63,13 +63,17 @@ Log every request into the database.
 ```python
 DRF_API_LOGGER_DATABASE = True  # Default to False
 ```
-Logs will be available in Django Admin Panel.
+* Logs will be available in Django Admin Panel.
+
+* The search bar will search in Request Body, Response, Headers and API URL.
+
+* You can also filter the logs based on the "added_on" date, Status Code and Request Methods.
 
 ![Alt text](https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/logs.png?raw=true, "Logger")
 
 ![Alt text](https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/lists.png?raw=true, "Lists")
 
-![Alt text](https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/details.png?raw=true, "Detais")
+![Alt text](https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/details.png?raw=true, "Details")
 
 Note: Make sure to migrate. It will create a table for logger if "DRF_API_LOGGER_DATABASE" is True else if already exists, it will delete the table.
 
@@ -126,6 +130,7 @@ Specify interval (In Seconds).
 ```python
 DRF_LOGGER_INTERVAL = 10  # In Seconds, Default to 10 seconds if not specified.
 ```
+Note: The API call time (added_on) is timezone aware datetime object. It is actual time of API call irrespective of interval value or queue size.
 ### Skip namespace
 You can skip the entire app to be logged into the database by specifying namespace of the app as list.
 ```python

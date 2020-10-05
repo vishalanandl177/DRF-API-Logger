@@ -12,7 +12,7 @@ if database_log_enabled():
             return obj.added_on.strftime("%d %b %Y %H:%M:%S")
 
         added_on_time.admin_order_field = 'added_on'
-        added_on_time.short_description = 'Time'
+        added_on_time.short_description = 'Added On'
 
         list_per_page = 20
         list_display = ('id', 'api', 'method', 'status_code', 'execution_time', 'added_on_time',)

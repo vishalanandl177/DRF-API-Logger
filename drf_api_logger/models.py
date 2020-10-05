@@ -9,8 +9,7 @@ if database_log_enabled():
     class BaseModel(models.Model):
         id = models.BigAutoField(primary_key=True)
 
-        # Auto add timestamp when created
-        added_on = models.DateTimeField(null=True, auto_now_add=True)
+        added_on = models.DateTimeField()
 
         def __str__(self):
             return str(self.id)
