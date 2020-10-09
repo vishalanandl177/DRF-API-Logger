@@ -22,9 +22,8 @@ class Events:
         if events is not None:
 
             try:
-                for _ in events:
-                    break
-            except:
+                iter(events)
+            except TypeError:
                 raise AttributeError("type object %s is not iterable" %
                                      (type(events)))
             else:

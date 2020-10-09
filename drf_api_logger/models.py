@@ -9,7 +9,7 @@ if database_log_enabled():
     class BaseModel(models.Model):
         id = models.BigAutoField(primary_key=True)
 
-        added_on = models.DateTimeField()
+        added_on = models.DateTimeField(auto_now_add=True)
 
         def __str__(self):
             return str(self.id)
