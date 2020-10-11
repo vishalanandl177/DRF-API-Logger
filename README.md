@@ -1,5 +1,5 @@
 # DRF API Logger
-![version](https://img.shields.io/badge/version-0.0.4-blue.svg)
+![version](https://img.shields.io/badge/version-0.0.5-blue.svg)
 
 An API Logger for your Django Rest Framework project.
 
@@ -51,7 +51,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 
-    'drf_api_logger.middleware.api_logger_middleware.APILoggerMiddleware' # Add here
+    'drf_api_logger.middleware.api_logger_middleware.APILoggerMiddleware', # Add here
 ]
 ```
 
