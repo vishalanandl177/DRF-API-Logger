@@ -1,5 +1,13 @@
 # DRF API Logger
-![version](https://img.shields.io/badge/version-0.0.5-blue.svg)
+![version](https://img.shields.io/badge/version-0.0.6-blue.svg)
+[![PyPi Downloads](http://pepy.tech/badge/drf-api-logger)](http://pepy.tech/project/drf-api-logger)
+[![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
+[![GitHub issues](https://img.shields.io/github/issues/Naereen/StrapDown.js.svg)](https://GitHub.com/vishalanandl177/DRF-API-Logger/issues/)
+
+[![Donate](https://img.shields.io/badge/$-support-ff69b4.svg?style=flat)](https://paypal.me/chynybekov)  
+
+
+
 
 An API Logger for your Django Rest Framework project.
 

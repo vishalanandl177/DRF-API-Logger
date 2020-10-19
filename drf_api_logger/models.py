@@ -21,11 +21,11 @@ if database_log_enabled():
 
     class APILogsModel(BaseModel):
         api = models.CharField(max_length=255, help_text='API URL')
-        headers = models.TextField(db_index=True)
-        body = models.TextField(db_index=True)
+        headers = models.TextField()
+        body = models.TextField()
         method = models.CharField(max_length=10, db_index=True)
         client_ip_address = models.CharField(max_length=50)
-        response = models.TextField(db_index=True)
+        response = models.TextField()
         status_code = models.PositiveSmallIntegerField(help_text='Response status code', db_index=True)
         execution_time = models.DecimalField(decimal_places=5, max_digits=8,
                                              help_text='Server execution time (Not complete response time.)')

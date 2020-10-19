@@ -9,7 +9,7 @@ def get_long_desc():
 
 setuptools.setup(
     name="drf_api_logger",
-    version="0.0.5",
+    version="0.0.6",
     author="Vishal Anand",
     author_email="vishalanandl177@gmail.com",
     description="An API Logger for your Django Rest Framework project.",
