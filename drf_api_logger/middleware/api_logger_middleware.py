@@ -28,6 +28,11 @@ class APILoggerMiddleware:
         if hasattr(settings, 'DRF_API_LOGGER_SIGNAL'):
             self.DRF_API_LOGGER_SIGNAL = settings.DRF_API_LOGGER_SIGNAL
 
+        self.DRF_API_LOGGER_PATH_TYPE = 'ABSOLUTE'
+        if hasattr(settings, 'DRF_API_LOGGER_PATH_TYPE'):
+            if settings.DRF_API_LOGGER_PATH_TYPE in ['ABSOLUTE', 'RAW_URI', 'FULL_PATH']:
+                self.DRF_API_LOGGER_PATH_TYPE = settings.DRF_API_LOGGER_PATH_TYPE
+
         self.DRF_API_LOGGER_SKIP_URL_NAME = []
         if hasattr(settings, 'DRF_API_LOGGER_SKIP_URL_NAME'):
             if type(settings.DRF_API_LOGGER_SKIP_URL_NAME) is tuple or type(
@@ -60,7 +65,6 @@ class APILoggerMiddleware:
             if namespace in self.DRF_API_LOGGER_SKIP_NAMESPACE:
                 return self.get_response(request)
 
-            path = bleach.clean(request.get_full_path())
             start_time = time.time()
             request_data = ''
             try:
@@ -87,11 +91,16 @@ class APILoggerMiddleware:
                         response_body = json.loads(response.content)
             else:
                 response_body = '** Not JSON **'
-            protocol = 'http'
-            if request.is_secure():
-                protocol = 'https'
-            host = request.META['HTTP_HOST']
-            api = '%s://%s%s' % (protocol, host, path,)
+
+            if self.DRF_API_LOGGER_PATH_TYPE == 'ABSOLUTE':
+                api = request.build_absolute_uri()
+            elif self.DRF_API_LOGGER_PATH_TYPE == 'FULL_PATH':
+                api = request.get_full_path()
+            elif self.DRF_API_LOGGER_PATH_TYPE == 'RAW_URI':
+                api = request.get_raw_uri()
+            else:
+                api = request.build_absolute_uri()
+
             data = dict(
                 api=api,
                 headers=headers,

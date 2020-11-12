@@ -1,5 +1,5 @@
 # DRF API Logger
-![version](https://img.shields.io/badge/version-0.0.6-blue.svg)
+![version](https://img.shields.io/badge/version-0.0.7-blue.svg)
 [![PyPi Downloads](http://pepy.tech/badge/drf-api-logger)](http://pepy.tech/project/drf-api-logger)
 [![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
 [![GitHub issues](https://img.shields.io/github/issues/Naereen/StrapDown.js.svg)](https://GitHub.com/vishalanandl177/DRF-API-Logger/issues/)
@@ -152,3 +152,31 @@ DRF_API_LOGGER_SKIP_URL_NAME = ['url_name1', 'url_name2']
 ```
 
 Note: It does not log Django Admin Panel API calls.
+
+### API with or without Host
+You can specify endpoint of API should have absolute URI or not by setting this variable in DRF settings.py file.
+```python
+DRF_API_LOGGER_PATH_TYPE = 'ABSOLUTE'  # Default to ABSOLUTE if not specified
+# Possible values are ABSOLUTE, FULL_PATH or RAW_URI
+```
+Considering we are accessing the following URL: http://127.0.0.1:8000/api/v1/?page=123
+DRF_API_LOGGER_PATH_TYPE possible values are:
+1. ABSOLUTE (Default) :   
+
+    Function used ```request.build_absolute_uri()```
+    
+    Output: ```http://127.0.0.1:8000/api/v1/?page=123```
+    
+2. FULL_PATH
+
+    Function used ```request.get_full_path()```
+    
+    Output: ```/api/v1/?page=123```
+    
+3. RAW_URI
+
+    Function used ```request.get_raw_uri()```
+    
+    Output: ```http://127.0.0.1:8000/api/v1/?page=123```
+    
+    Note: Similar to ABSOLUTE but skip allowed hosts protection, so may return insecure URI.
