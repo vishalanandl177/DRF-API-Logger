@@ -20,7 +20,7 @@ if database_log_enabled():
 
 
     class APILogsModel(BaseModel):
-        api = models.CharField(max_length=255, help_text='API URL')
+        api = models.CharField(max_length=512, help_text='API URL')
         headers = models.TextField()
         body = models.TextField()
         method = models.CharField(max_length=10, db_index=True)
