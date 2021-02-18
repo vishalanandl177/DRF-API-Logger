@@ -3,7 +3,6 @@
 [![Downloads](https://pepy.tech/badge/drf-api-logger)](http://pepy.tech/project/drf-api-logger)
 [![Downloads](https://pepy.tech/badge/drf-api-logger/month)](https://pepy.tech/project/drf-api-logger)
 [![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
-[![GitHub issues](https://img.shields.io/github/issues/Naereen/StrapDown.js.svg)](https://GitHub.com/vishalanandl177/DRF-API-Logger/issues/)
 
 [![Donate](https://img.shields.io/badge/$-support-ff69b4.svg?style=flat)](https://paypal.me/chynybekov)  
 
