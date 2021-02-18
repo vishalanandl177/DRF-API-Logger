@@ -1,4 +1,4 @@
 include LICENSE
-include README.MD
+include README.md
 recursive-include drf_api_logger/static *
 recursive-include drf_api_logger/templates *
