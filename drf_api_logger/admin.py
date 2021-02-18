@@ -1,6 +1,11 @@
+from django.conf.urls import url
 from django.contrib import admin
+from django.db.models import Count
+from django.shortcuts import render
+from django.views import View
 
 from drf_api_logger.utils import database_log_enabled
+
 
 if database_log_enabled():
     from drf_api_logger.models import APILogsModel
@@ -12,7 +17,7 @@ if database_log_enabled():
             return obj.added_on.strftime("%d %b %Y %H:%M:%S")
 
         added_on_time.admin_order_field = 'added_on'
-        added_on_time.short_description = 'Added On'
+        added_on_time.short_description = 'Added on'
 
         list_per_page = 20
         list_display = ('id', 'api', 'method', 'status_code', 'execution_time', 'added_on_time',)
@@ -22,12 +27,23 @@ if database_log_enabled():
             'execution_time', 'client_ip_address', 'api',
             'headers', 'body', 'method', 'response', 'status_code', 'added_on_time',
         )
+        exclude = ('added_on',)
+
+        change_list_template = 'charts_change_list.html'
+        date_hierarchy = 'added_on'
+
+        def changelist_view(self, request, extra_context=None):
+            response = super(APILogsAdmin, self).changelist_view(request, extra_context)
+            filtered_query_set = response.context_data["cl"].queryset
+            analytics_model = filtered_query_set.values('added_on__date').annotate(total=Count('id')).order_by('total')
+            extra_context = dict(analytics=analytics_model)
+            response.context_data.update(extra_context)
+            return response
 
         def has_add_permission(self, request, obj=None):
             return False
 
         def has_change_permission(self, request, obj=None):
             return False
-
 
     admin.site.register(APILogsModel, APILogsAdmin)

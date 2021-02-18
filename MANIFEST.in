@@ -1,0 +1,4 @@
+include LICENSE
+include README.MD
+recursive-include drf_api_logger/static *
+recursive-include drf_api_logger/templates *
