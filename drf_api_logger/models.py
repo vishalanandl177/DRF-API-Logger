@@ -2,6 +2,7 @@ from django.db import models
 
 from drf_api_logger.utils import database_log_enabled
 
+
 if database_log_enabled():
     """
     Load models only if DRF_API_LOGGER_DATABASE is True

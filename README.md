@@ -1,5 +1,5 @@
 # DRF API Logger
-![version](https://img.shields.io/badge/version-1.0.2-blue.svg)
+![version](https://img.shields.io/badge/version-1.0.3-blue.svg)
 [![Downloads](https://pepy.tech/badge/drf-api-logger)](http://pepy.tech/project/drf-api-logger)
 [![Downloads](https://pepy.tech/badge/drf-api-logger/month)](https://pepy.tech/project/drf-api-logger)
 [![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
@@ -23,9 +23,9 @@ It logs all the API information for content type "application/json".
 9. Client IP Address
 
 
-You can log API information into the database or listen to the logger signals for different use-cases or you can do both.
+You can log API information into the database or listen to the logger signals for different use-cases, or you can do both.
 
-* The logger usage a separate thread to run so it won't affect your API response time.
+* The logger usage a separate thread to run, so it won't affect your API response time.
 
 ## Installation
 
@@ -154,7 +154,7 @@ DRF_API_LOGGER_SKIP_URL_NAME = ['url_name1', 'url_name2']
 Note: It does not log Django Admin Panel API calls.
 
 ### API with or without Host
-You can specify endpoint of API should have absolute URI or not by setting this variable in DRF settings.py file.
+You can specify an endpoint of API should have absolute URI or not by setting this variable in DRF settings.py file.
 ```python
 DRF_API_LOGGER_PATH_TYPE = 'ABSOLUTE'  # Default to ABSOLUTE if not specified
 # Possible values are ABSOLUTE, FULL_PATH or RAW_URI
@@ -179,4 +179,36 @@ DRF_API_LOGGER_PATH_TYPE possible values are:
     
     Output: ```http://127.0.0.1:8000/api/v1/?page=123```
     
-    Note: Similar to ABSOLUTE but skip allowed hosts protection, so may return insecure URI.
+    Note: Similar to ABSOLUTE but skip allowed hosts protection, so may return an insecure URI.
+
+
+### Use DRF API Logger Model to query 
+You can use the DRF API Logger Model to query some information.
+
+Note: Make sure to set "DRF_API_LOGGER_DATABASE = True" in settings.py file.
+```
+from drf_api_logger.models import APILogsModel
+
+"""
+Example:
+Select records for status_code 200.
+"""
+result_for_200_status_code = APILogsModel.objects.filter(status_code=200)
+```
+
+Model:
+```
+class APILogsModel(Model):
+   id = models.BigAutoField(primary_key=True)
+   api = models.CharField(max_length=512, help_text='API URL')
+   headers = models.TextField()
+   body = models.TextField()
+   method = models.CharField(max_length=10, db_index=True)
+   client_ip_address = models.CharField(max_length=50)
+   response = models.TextField()
+   status_code = models.PositiveSmallIntegerField(help_text='Response status code', db_index=True)
+   execution_time = models.DecimalField(decimal_places=5, max_digits=8,
+                                       help_text='Server execution time (Not complete response time.)')
+   added_on = models.DateTimeField()
+
+```

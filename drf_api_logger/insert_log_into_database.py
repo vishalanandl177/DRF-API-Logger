@@ -63,3 +63,5 @@ class InsertLogIntoDatabase(Thread):
             Model does not exists.
             Did you forget to migrate?
             """)
+        except Exception as e:
+            print('DRF API LOGGER EXCEPTION:', e)
