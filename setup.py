@@ -30,7 +30,7 @@ setuptools.setup(
     url="https://github.com/vishalanandl177/DRF-API-Logger",
     packages=setuptools.find_packages(),
     install_requires=["djangorestframework>=3.7.4", "bleach>=3.1.5"],
-    license='GNU General Public License v3.0',
+    license='MIT',
     python_requires='>=3.6',
     include_package_data=True,
     classifiers=[
