@@ -7,10 +7,10 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.8.0/Chart.min.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.8.0/Chart.bundle.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-  const ctx = document.getElementById('myChart').getContext('2d');
 
-  // Sample data
+document.addEventListener('DOMContentLoaded', () => {
+  const ctx = document.getElementById('countChart').getContext('2d');
+
   const chartData = [
     {% for item in analytics %}
     {"date": "{{ item.added_on__date }}", "y": {{ item.total }}},
@@ -60,6 +60,38 @@ document.addEventListener('DOMContentLoaded', () => {
       },
     },
   });
+
+  var color = Chart.helpers.color;
+
+  var barChartData = {
+      labels: {{ status_code_count_keys }},
+      datasets: [{
+          label: 'Number of API calls by status code',
+          backgroundColor: 'rgb(33,150,243)',
+          borderColor: 'rgb(33,150,243)',
+          borderWidth: 1,
+          data: {{ status_code_count_values }}
+      }]
+  };
+
+  window.onload = function() {
+      var ctx = document.getElementById('statusCodeChart').getContext('2d');
+      window.myBar = new Chart(ctx, {
+          type: 'bar',
+          data: barChartData,
+          options: {
+              responsive: true,
+              legend: {
+                  position: 'top',
+              },
+              title: {
+                  display: true,
+                  text: 'API calls by status code'
+              }
+          }
+      });
+
+  };
 });
 </script>
 {% endblock %}
@@ -67,7 +99,10 @@ document.addEventListener('DOMContentLoaded', () => {
 {% block content %}
 <!-- Render our chart -->
 <div style="width: 80%;">
-  <canvas style="margin-bottom: 30px; width: 60%; height: 50%;" id="myChart"></canvas>
+  <canvas style="margin-bottom: 30px; width: 60%; height: 50%;" id="countChart"></canvas>
+</div>
+<div style="width: 80%; margin-top: 24px;">
+  <canvas style="margin-bottom: 30px; width: 60%; height: 50%;" id="statusCodeChart"></canvas>
 </div>
 <!-- Render the rest of the ChangeList view -->
 {{ block.super }}

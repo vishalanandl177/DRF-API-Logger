@@ -1,9 +1,7 @@
 from django.contrib import admin
 from django.db.models import Count
 
-
 from drf_api_logger.utils import database_log_enabled
-
 
 if database_log_enabled():
     from drf_api_logger.models import APILogsModel
@@ -34,7 +32,18 @@ if database_log_enabled():
             response = super(APILogsAdmin, self).changelist_view(request, extra_context)
             filtered_query_set = response.context_data["cl"].queryset
             analytics_model = filtered_query_set.values('added_on__date').annotate(total=Count('id')).order_by('total')
-            extra_context = dict(analytics=analytics_model)
+            status_code_count_mode = filtered_query_set.values('id').values('status_code').annotate(
+                total=Count('id')).order_by('status_code')
+            status_code_count_keys = list()
+            status_code_count_values = list()
+            for item in status_code_count_mode:
+                status_code_count_keys.append(item.get('status_code'))
+                status_code_count_values.append(item.get('total'))
+            extra_context = dict(
+                analytics=analytics_model,
+                status_code_count_keys=status_code_count_keys,
+                status_code_count_values=status_code_count_values
+            )
             response.context_data.update(extra_context)
             return response
 
@@ -46,5 +55,6 @@ if database_log_enabled():
 
         def has_delete_permission(self, request, obj=None):
             return False
+
 
     admin.site.register(APILogsModel, APILogsAdmin)
