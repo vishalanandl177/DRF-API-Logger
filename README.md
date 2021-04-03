@@ -79,6 +79,8 @@ DRF_API_LOGGER_DATABASE = True  # Default to False
 
 ![Alt text](https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/logs.png?raw=true, "Logger")
 
+![Alt text](https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/graph.png?raw=true, "Graph")
+
 ![Alt text](https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/lists.png?raw=true, "Lists")
 
 ![Alt text](https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/details.png?raw=true, "Details")
@@ -134,11 +136,11 @@ DRF_LOGGER_QUEUE_MAX_SIZE = 50  # Default to 50 if not specified.
 
 DRF API Logger also waits for a period of time. If queue is not full and there are some logs to be inserted, it inserts after interval ends.
 
-Specify interval (In Seconds).
+Specify an interval (In Seconds).
 ```python
 DRF_LOGGER_INTERVAL = 10  # In Seconds, Default to 10 seconds if not specified.
 ```
-Note: The API call time (added_on) is timezone aware datetime object. It is actual time of API call irrespective of interval value or queue size.
+Note: The API call time (added_on) is a timezone aware datetime object. It is actual time of API call irrespective of interval value or queue size.
 ### Skip namespace
 You can skip the entire app to be logged into the database by specifying namespace of the app as list.
 ```python
@@ -196,7 +198,7 @@ Select records for status_code 200.
 result_for_200_status_code = APILogsModel.objects.filter(status_code=200)
 ```
 
-Model:
+DRF API Logger Model:
 ```
 class APILogsModel(Model):
    id = models.BigAutoField(primary_key=True)
