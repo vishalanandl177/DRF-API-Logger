@@ -155,6 +155,12 @@ DRF_API_LOGGER_SKIP_URL_NAME = ['url_name1', 'url_name2']
 
 Note: It does not log Django Admin Panel API calls.
 
+### Hide Sensitive Data From Logs
+You may wish to hide sensitive information from being exposed in the logs. You do this by setting `DRF_API_LOGGER_EXCLUDE_KEYS` in settings.py to a list of your desired sensitive keys. The default is
+```python
+DRF_API_LOGGER_EXCLUDE_KEYS = ['password', 'token', 'access', 'refresh']
+```
+
 ### API with or without Host
 You can specify an endpoint of API should have absolute URI or not by setting this variable in DRF settings.py file.
 ```python
