@@ -81,7 +81,7 @@ class APILoggerMiddleware:
 
             headers = get_headers(request=request)
             method = request.method
-            if 'content-type' in response and response['content-type'] == 'application/json' or response['content-type'] == 'application/vnd.api+json':
+            if response.get('content-type') in ('application/json', 'application/vnd.api+json',):
                 if getattr(response, 'streaming', False):
                     response_body = '** Streaming **'
                 else:

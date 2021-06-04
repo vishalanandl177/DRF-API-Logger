@@ -11,6 +11,11 @@ class InsertLogIntoDatabase(Thread):
 
     def __init__(self):
         super().__init__()
+
+        self.DRF_API_LOGGER_DEFAULT_DATABASE = 'default'
+        if hasattr(settings, 'DRF_API_LOGGER_DEFAULT_DATABASE'):
+            self.DRF_API_LOGGER_DEFAULT_DATABASE = settings.DRF_API_LOGGER_DEFAULT_DATABASE
+
         self.DRF_LOGGER_QUEUE_MAX_SIZE = 50  # Default queue size 50
         if hasattr(settings, 'DRF_LOGGER_QUEUE_MAX_SIZE'):
             self.DRF_LOGGER_QUEUE_MAX_SIZE = settings.DRF_LOGGER_QUEUE_MAX_SIZE
@@ -56,7 +61,7 @@ class InsertLogIntoDatabase(Thread):
 
     def _insert_into_data_base(self, bulk_item):
         try:
-            APILogsModel.objects.bulk_create(bulk_item)
+            APILogsModel.objects.using(self.DRF_API_LOGGER_DEFAULT_DATABASE).bulk_create(bulk_item)
         except OperationalError:
             raise Exception("""
             DRF API LOGGER EXCEPTION

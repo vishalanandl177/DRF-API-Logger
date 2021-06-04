@@ -1,5 +1,5 @@
 # DRF API Logger
-![version](https://img.shields.io/badge/version-1.0.6-blue.svg)
+![version](https://img.shields.io/badge/version-1.0.7-blue.svg)
 [![Downloads](https://pepy.tech/badge/drf-api-logger)](http://pepy.tech/project/drf-api-logger)
 [![Downloads](https://pepy.tech/badge/drf-api-logger/month)](https://pepy.tech/project/drf-api-logger)
 [![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
@@ -156,9 +156,20 @@ DRF_API_LOGGER_SKIP_URL_NAME = ['url_name1', 'url_name2']
 Note: It does not log Django Admin Panel API calls.
 
 ### Hide Sensitive Data From Logs
-You may wish to hide sensitive information from being exposed in the logs. You do this by setting `DRF_API_LOGGER_EXCLUDE_KEYS` in settings.py to a list of your desired sensitive keys. The default is
+You may wish to hide sensitive information from being exposed in the logs. 
+You do this by setting `DRF_API_LOGGER_EXCLUDE_KEYS` in settings.py to a list of your desired sensitive keys. 
+The default is
 ```python
 DRF_API_LOGGER_EXCLUDE_KEYS = ['password', 'token', 'access', 'refresh']
+# Sensitive data will be replaced with "***FILTERED***".
+```
+
+### Change default database to store API logs
+```python
+DRF_API_LOGGER_DEFAULT_DATABASE = 'default'  # Default to "default" if not specified
+"""
+Make sure to migrate the database specified in DRF_API_LOGGER_DEFAULT_DATABASE.
+"""
 ```
 
 ### API with or without Host
@@ -218,5 +229,18 @@ class APILogsModel(Model):
    execution_time = models.DecimalField(decimal_places=5, max_digits=8,
                                        help_text='Server execution time (Not complete response time.)')
    added_on = models.DateTimeField()
+   
+   def __str__(self):
+      return self.api
+
+   class Meta:
+      db_table = 'drf_api_logs'
+      verbose_name = 'API Log'
+      verbose_name_plural = 'API Logs'
 
 ```
+
+### Note:
+After sometime, there will be too many data in the database. Searching and filter may get slower.
+If you want, you can delete or archive the older data.
+To improve the searching or filtering, try to add indexes in the 'drf_api_logs' table.
