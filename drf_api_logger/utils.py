@@ -1,6 +1,10 @@
 import re
 from django.conf import settings
 
+SENSITIVE_KEYS = ['password', 'token', 'access', 'refresh']
+if hasattr(settings, 'DRF_API_LOGGER_EXCLUDE_KEYS'):
+    if type(settings.DRF_API_LOGGER_EXCLUDE_KEYS) in (list, tuple):
+        SENSITIVE_KEYS.extend(settings.DRF_API_LOGGER_EXCLUDE_KEYS)
 
 def get_headers(request=None):
     """
@@ -40,3 +44,22 @@ def database_log_enabled():
     if hasattr(settings, 'DRF_API_LOGGER_DATABASE'):
         drf_api_logger_database = settings.DRF_API_LOGGER_DATABASE
     return drf_api_logger_database
+
+
+def mask_sensitive_data(data):
+    """
+    Hides sensitive keys specified in sensitive_keys settings.
+    Loops recursively over nested dictionaries.
+    """
+
+    if type(data) != dict:
+      return data
+
+    for key, value in data.items():
+      if key in SENSITIVE_KEYS:
+        data[key] = "***FILTERED***"
+
+      if type(value) == dict:
+        data[key] = mask_sensitive_data(data[key])
+
+    return data

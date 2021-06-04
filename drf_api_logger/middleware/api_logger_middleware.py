@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from drf_api_logger import API_LOGGER_SIGNAL
 from drf_api_logger.start_logger_when_server_starts import LOGGER_THREAD
-from drf_api_logger.utils import get_headers, get_client_ip
+from drf_api_logger.utils import get_headers, get_client_ip, mask_sensitive_data
 
 """
 File: api_logger_middleware.py
@@ -100,11 +100,11 @@ class APILoggerMiddleware:
 
                 data = dict(
                     api=api,
-                    headers=headers,
-                    body=request_data,
+                    headers=mask_sensitive_data(headers),
+                    body=mask_sensitive_data(request_data),
                     method=method,
                     client_ip_address=get_client_ip(request),
-                    response=response_body,
+                    response=mask_sensitive_data(response_body),
                     status_code=response.status_code,
                     execution_time=time.time() - start_time,
                     added_on=timezone.now()
