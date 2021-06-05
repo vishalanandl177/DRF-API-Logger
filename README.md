@@ -1,5 +1,5 @@
 # DRF API Logger
-![version](https://img.shields.io/badge/version-1.0.7-blue.svg)
+![version](https://img.shields.io/badge/version-1.0.8-blue.svg)
 [![Downloads](https://pepy.tech/badge/drf-api-logger)](http://pepy.tech/project/drf-api-logger)
 [![Downloads](https://pepy.tech/badge/drf-api-logger/month)](https://pepy.tech/project/drf-api-logger)
 [![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
@@ -178,6 +178,16 @@ You can specify an endpoint of API should have absolute URI or not by setting th
 DRF_API_LOGGER_PATH_TYPE = 'ABSOLUTE'  # Default to ABSOLUTE if not specified
 # Possible values are ABSOLUTE, FULL_PATH or RAW_URI
 ```
+
+### Want to identify slow APIs? (Optional)
+You can also identify slow APIs by specifying `DRF_API_LOGGER_SLOW_API_ABOVE` in settings.py.
+
+A new filter (By API Performance) will be visible, and you can choose slow or fast API.
+```python
+DRF_API_LOGGER_SLOW_API_ABOVE = 200  # Default to None
+# Specify in milli-seconds.
+```
+
 Considering we are accessing the following URL: http://127.0.0.1:8000/api/v1/?page=123
 DRF_API_LOGGER_PATH_TYPE possible values are:
 1. ABSOLUTE (Default) :   

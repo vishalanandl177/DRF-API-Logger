@@ -1,13 +1,66 @@
+from django.conf import settings
 from django.contrib import admin
 from django.db.models import Count
-
 from drf_api_logger.utils import database_log_enabled
 
 if database_log_enabled():
     from drf_api_logger.models import APILogsModel
+    from django.utils.translation import gettext_lazy as _
 
+    class SlowAPIsFilter(admin.SimpleListFilter):
+        title = _('API Performance')
+
+        # Parameter for the filter that will be used in the URL query.
+        parameter_name = 'api_performance'
+
+        def __init__(self, request, params, model, model_admin):
+            super().__init__(request, params, model, model_admin)
+            if hasattr(settings, 'DRF_API_LOGGER_SLOW_API_ABOVE'):
+                if type(settings.DRF_API_LOGGER_SLOW_API_ABOVE) == int:  # Making sure for integer value.
+                    self.DRF_API_LOGGER_SLOW_API_ABOVE = settings.DRF_API_LOGGER_SLOW_API_ABOVE / 1000  # Converting to seconds.
+
+        def lookups(self, request, model_admin):
+            """
+            Returns a list of tuples. The first element in each
+            tuple is the coded value for the option that will
+            appear in the URL query. The second element is the
+            human-readable name for the option that will appear
+            in the right sidebar.
+            """
+            slow = 'Slow'
+            fast = 'Fast'
+            if hasattr(settings, 'DRF_API_LOGGER_SLOW_API_ABOVE'):
+                slow += ', >={}ms'.format(settings.DRF_API_LOGGER_SLOW_API_ABOVE)
+                fast += ', <{}ms'.format(settings.DRF_API_LOGGER_SLOW_API_ABOVE)
+
+            return (
+                ('slow', _(slow)),
+                ('fast', _(fast)),
+            )
+
+        def queryset(self, request, queryset):
+            """
+            Returns the filtered queryset based on the value
+            provided in the query string and retrievable via
+            `self.value()`.
+            """
+            # to decide how to filter the queryset.
+            if self.value() == 'slow':
+                return queryset.filter(execution_time__gte=self.DRF_API_LOGGER_SLOW_API_ABOVE)
+            if self.value() == 'fast':
+                return queryset.filter(execution_time__lt=self.DRF_API_LOGGER_SLOW_API_ABOVE)
+
+            return queryset
 
     class APILogsAdmin(admin.ModelAdmin):
+
+        def __init__(self, model, admin_site):
+            super().__init__(model, admin_site)
+            self.DRF_API_LOGGER_SLOW_API_ABOVE = None
+            if hasattr(settings, 'DRF_API_LOGGER_SLOW_API_ABOVE'):
+                if type(settings.DRF_API_LOGGER_SLOW_API_ABOVE) == int:  # Making sure for integer value.
+                    self.DRF_API_LOGGER_SLOW_API_ABOVE = settings.DRF_API_LOGGER_SLOW_API_ABOVE / 1000  # Converting to seconds.
+                    self.list_filter += (SlowAPIsFilter,)
 
         def added_on_time(self, obj):
             return obj.added_on.strftime("%d %b %Y %H:%M:%S")
@@ -46,6 +99,9 @@ if database_log_enabled():
             )
             response.context_data.update(extra_context)
             return response
+
+        def get_queryset(self, request):
+            return super(APILogsAdmin, self).get_queryset(request)
 
         def has_add_permission(self, request, obj=None):
             return False
