@@ -3,9 +3,11 @@
 [![Downloads](https://pepy.tech/badge/drf-api-logger)](http://pepy.tech/project/drf-api-logger)
 [![Downloads](https://pepy.tech/badge/drf-api-logger/month)](https://pepy.tech/project/drf-api-logger)
 [![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
-
 [![Donate](https://img.shields.io/badge/$-support-ff69b4.svg?style=flat)](https://paypal.me/chynybekov)  
 
+<a href="https://discord.gg/Kr8SbgPe"><img src="https://img.shields.io/badge/Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white" alt="Join Community Badge"/></a>
+<a href="https://www.instagram.com/coderssecret/"><img src="https://img.shields.io/badge/Instagram-E4405F?style=for-the-badge&logo=instagram&logoColor=white" alt="Join Instagram"/></a>
+<a href="https://github.com/vishalanandl177"><img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"/></a>
 
 
 
@@ -254,3 +256,4 @@ class APILogsModel(Model):
 After sometime, there will be too many data in the database. Searching and filter may get slower.
 If you want, you can delete or archive the older data.
 To improve the searching or filtering, try to add indexes in the 'drf_api_logs' table.
+
