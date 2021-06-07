@@ -1,7 +1,8 @@
 # DRF API Logger
 ![version](https://img.shields.io/badge/version-1.0.8-blue.svg)
-[![Downloads](https://pepy.tech/badge/drf-api-logger)](http://pepy.tech/project/drf-api-logger)
-[![Downloads](https://pepy.tech/badge/drf-api-logger/month)](https://pepy.tech/project/drf-api-logger)
+[![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=total&units=none&left_color=black&right_color=orange&left_text=Downloads%20Total)](http://pepy.tech/project/drf-api-logger)
+[![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=month&units=none&left_color=black&right_color=orange&left_text=Downloads%20Last%20Month)](https://pepy.tech/project/drf-api-logger)
+[![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=week&units=none&left_color=black&right_color=orange&left_text=Downloads%20Last%20Week)](https://pepy.tech/project/drf-api-logger)
 [![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
 [![Donate](https://img.shields.io/badge/$-support-ff69b4.svg?style=flat)](https://paypal.me/chynybekov)  
 
