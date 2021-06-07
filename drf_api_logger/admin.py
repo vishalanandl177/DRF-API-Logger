@@ -109,8 +109,5 @@ if database_log_enabled():
         def has_change_permission(self, request, obj=None):
             return False
 
-        def has_delete_permission(self, request, obj=None):
-            return True
-
 
     admin.site.register(APILogsModel, APILogsAdmin)
