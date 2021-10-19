@@ -81,14 +81,20 @@ class APILoggerMiddleware:
 
             headers = get_headers(request=request)
             method = request.method
-            if response.get('content-type') in ('application/json', 'application/vnd.api+json',):
+            if response.get('content-type') in ('application/json', 'application/vnd.api+json','text/html'):
                 if getattr(response, 'streaming', False):
                     response_body = '** Streaming **'
                 else:
                     if type(response.content) == bytes:
-                        response_body = json.loads(response.content.decode())
+                        if response.get('content-type') == 'text/html':
+                            response_body = response.content
+                        else:
+                            response_body = json.loads(response.content.decode())
                     else:
-                        response_body = json.loads(response.content)
+                        if response.get('content-type') == 'text/html':
+                            response_body = response.content
+                        else:
+                            response_body = json.loads(response.content)
                 if self.DRF_API_LOGGER_PATH_TYPE == 'ABSOLUTE':
                     api = request.build_absolute_uri()
                 elif self.DRF_API_LOGGER_PATH_TYPE == 'FULL_PATH':
@@ -115,7 +121,11 @@ class APILoggerMiddleware:
                         d['headers'] = json.dumps(d['headers'], indent=4)
                         if request_data:
                             d['body'] = json.dumps(d['body'], indent=4)
-                        d['response'] = json.dumps(d['response'], indent=4)
+                        # For 500 Internal Server errors, response is html and type is bytes - When DEBUG=FALSE
+                        if not isinstance(d['response'],dict):
+                            d['response'] = d['response']
+                        else:
+                            d['response'] = json.dumps(d['response'], indent=4)
                         LOGGER_THREAD.put_log_data(data=d)
                 if self.DRF_API_LOGGER_SIGNAL:
                     API_LOGGER_SIGNAL.listen(**data)
