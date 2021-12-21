@@ -1,5 +1,5 @@
 # DRF API Logger
-![version](https://img.shields.io/badge/version-1.0.8-blue.svg)
+![version](https://img.shields.io/badge/version-1.0.9-blue.svg)
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=total&units=none&left_color=black&right_color=orange&left_text=Downloads%20Total)](http://pepy.tech/project/drf-api-logger)
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=month&units=none&left_color=black&right_color=orange&left_text=Downloads%20Last%20Month)](https://pepy.tech/project/drf-api-logger)
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=week&units=none&left_color=black&right_color=orange&left_text=Downloads%20Last%20Week)](https://pepy.tech/project/drf-api-logger)
@@ -175,13 +175,6 @@ Make sure to migrate the database specified in DRF_API_LOGGER_DEFAULT_DATABASE.
 """
 ```
 
-### API with or without Host
-You can specify an endpoint of API should have absolute URI or not by setting this variable in DRF settings.py file.
-```python
-DRF_API_LOGGER_PATH_TYPE = 'ABSOLUTE'  # Default to ABSOLUTE if not specified
-# Possible values are ABSOLUTE, FULL_PATH or RAW_URI
-```
-
 ### Want to identify slow APIs? (Optional)
 You can also identify slow APIs by specifying `DRF_API_LOGGER_SLOW_API_ABOVE` in settings.py.
 
@@ -189,6 +182,26 @@ A new filter (By API Performance) will be visible, and you can choose slow or fa
 ```python
 DRF_API_LOGGER_SLOW_API_ABOVE = 200  # Default to None
 # Specify in milli-seconds.
+```
+
+### Want to see the API information in local timezone? (Optional)
+You can also identify slow APIs by specifying `DRF_API_LOGGER_TIMEDELTA` in settings.py.
+It is going to display the API request time after adding the timedelta specified in the settings.py file.
+It won't change the Database timezone.
+```python
+DRF_API_LOGGER_TIMEDELTA = 330 # UTC + 330 Minutes = IST (5:Hours, 30:Minutes ahead from UTC) 
+# Specify in minutes.
+```
+```python
+# Yoc can specify negative values for the countries behind the UTC timezone.
+DRF_API_LOGGER_TIMEDELTA = -30  # Example
+```
+
+### API with or without Host
+You can specify an endpoint of API should have absolute URI or not by setting this variable in DRF settings.py file.
+```python
+DRF_API_LOGGER_PATH_TYPE = 'ABSOLUTE'  # Default to ABSOLUTE if not specified
+# Possible values are ABSOLUTE, FULL_PATH or RAW_URI
 ```
 
 Considering we are accessing the following URL: http://127.0.0.1:8000/api/v1/?page=123
@@ -232,7 +245,7 @@ DRF API Logger Model:
 ```
 class APILogsModel(Model):
    id = models.BigAutoField(primary_key=True)
-   api = models.CharField(max_length=512, help_text='API URL')
+   api = models.CharField(max_length=1024, help_text='API URL')
    headers = models.TextField()
    body = models.TextField()
    method = models.CharField(max_length=10, db_index=True)
