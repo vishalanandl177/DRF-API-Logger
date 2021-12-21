@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.conf import settings
 from django.contrib import admin
 from django.db.models import Count
@@ -17,7 +19,7 @@ if database_log_enabled():
             super().__init__(request, params, model, model_admin)
             if hasattr(settings, 'DRF_API_LOGGER_SLOW_API_ABOVE'):
                 if type(settings.DRF_API_LOGGER_SLOW_API_ABOVE) == int:  # Making sure for integer value.
-                    self.DRF_API_LOGGER_SLOW_API_ABOVE = settings.DRF_API_LOGGER_SLOW_API_ABOVE / 1000  # Converting to seconds.
+                    self._DRF_API_LOGGER_SLOW_API_ABOVE = settings.DRF_API_LOGGER_SLOW_API_ABOVE / 1000  # Converting to seconds.
 
         def lookups(self, request, model_admin):
             """
@@ -46,9 +48,9 @@ if database_log_enabled():
             """
             # to decide how to filter the queryset.
             if self.value() == 'slow':
-                return queryset.filter(execution_time__gte=self.DRF_API_LOGGER_SLOW_API_ABOVE)
+                return queryset.filter(execution_time__gte=self._DRF_API_LOGGER_SLOW_API_ABOVE)
             if self.value() == 'fast':
-                return queryset.filter(execution_time__lt=self.DRF_API_LOGGER_SLOW_API_ABOVE)
+                return queryset.filter(execution_time__lt=self._DRF_API_LOGGER_SLOW_API_ABOVE)
 
             return queryset
 
@@ -56,14 +58,16 @@ if database_log_enabled():
 
         def __init__(self, model, admin_site):
             super().__init__(model, admin_site)
-            self.DRF_API_LOGGER_SLOW_API_ABOVE = None
+            self._DRF_API_LOGGER_TIMEDELTA = 0
             if hasattr(settings, 'DRF_API_LOGGER_SLOW_API_ABOVE'):
                 if type(settings.DRF_API_LOGGER_SLOW_API_ABOVE) == int:  # Making sure for integer value.
-                    self.DRF_API_LOGGER_SLOW_API_ABOVE = settings.DRF_API_LOGGER_SLOW_API_ABOVE / 1000  # Converting to seconds.
                     self.list_filter += (SlowAPIsFilter,)
+            if hasattr(settings, 'DRF_API_LOGGER_TIMEDELTA'):
+                if type(settings.DRF_API_LOGGER_TIMEDELTA) == int:  # Making sure for integer value.
+                    self._DRF_API_LOGGER_TIMEDELTA = settings.DRF_API_LOGGER_TIMEDELTA
 
         def added_on_time(self, obj):
-            return obj.added_on.strftime("%d %b %Y %H:%M:%S")
+            return (obj.added_on + timedelta(minutes=self._DRF_API_LOGGER_TIMEDELTA)).strftime("%d %b %Y %H:%M:%S")
 
         added_on_time.admin_order_field = 'added_on'
         added_on_time.short_description = 'Added on'

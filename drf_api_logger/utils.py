@@ -6,6 +6,7 @@ if hasattr(settings, 'DRF_API_LOGGER_EXCLUDE_KEYS'):
     if type(settings.DRF_API_LOGGER_EXCLUDE_KEYS) in (list, tuple):
         SENSITIVE_KEYS.extend(settings.DRF_API_LOGGER_EXCLUDE_KEYS)
 
+
 def get_headers(request=None):
     """
         Function:       get_headers(self, request)
@@ -53,13 +54,16 @@ def mask_sensitive_data(data):
     """
 
     if type(data) != dict:
-      return data
+        return data
 
     for key, value in data.items():
-      if key in SENSITIVE_KEYS:
-        data[key] = "***FILTERED***"
+        if key in SENSITIVE_KEYS:
+            data[key] = "***FILTERED***"
 
-      if type(value) == dict:
-        data[key] = mask_sensitive_data(data[key])
+        if type(value) == dict:
+            data[key] = mask_sensitive_data(data[key])
+
+        if type(value) == list:
+            data[key] = [mask_sensitive_data(item) for item in data[key]]
 
     return data
