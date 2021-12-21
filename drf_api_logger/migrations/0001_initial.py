@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(primary_key=True, serialize=False)),
                 ('added_on', models.DateTimeField()),
-                ('api', models.CharField(help_text='API URL', max_length=1024)),
+                ('api', models.CharField(help_text='API URL', max_length=512)),
                 ('headers', models.TextField()),
                 ('body', models.TextField()),
                 ('method', models.CharField(db_index=True, max_length=10)),
