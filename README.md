@@ -1,12 +1,12 @@
 # DRF API Logger
-![version](https://img.shields.io/badge/version-1.0.9-blue.svg)
+![version](https://img.shields.io/badge/version-1.0.10-blue.svg)
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=total&units=none&left_color=black&right_color=orange&left_text=Downloads%20Total)](http://pepy.tech/project/drf-api-logger)
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=month&units=none&left_color=black&right_color=orange&left_text=Downloads%20Last%20Month)](https://pepy.tech/project/drf-api-logger)
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=week&units=none&left_color=black&right_color=orange&left_text=Downloads%20Last%20Week)](https://pepy.tech/project/drf-api-logger)
 [![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
 [![Donate](https://img.shields.io/badge/$-support-ff69b4.svg?style=flat)](https://paypal.me/chynybekov)  
 
-<a href="https://discord.gg/Kr8SbgPe"><img src="https://img.shields.io/badge/Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white" alt="Join Community Badge"/></a>
+<a href="https://discord.gg/eeYansFDCT"><img src="https://img.shields.io/badge/Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white" alt="Join Community Badge"/></a>
 <a href="https://www.instagram.com/coderssecret/"><img src="https://img.shields.io/badge/Instagram-E4405F?style=for-the-badge&logo=instagram&logoColor=white" alt="Join Instagram"/></a>
 <a href="https://github.com/vishalanandl177"><img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"/></a>
 
@@ -182,6 +182,12 @@ A new filter (By API Performance) will be visible, and you can choose slow or fa
 ```python
 DRF_API_LOGGER_SLOW_API_ABOVE = 200  # Default to None
 # Specify in milli-seconds.
+```
+
+### Want to log only selected request methods? (Optional)
+You can log only selected methods by specifying `DRF_API_LOGGER_METHODS` in settings.py.
+```python
+DRF_API_LOGGER_METHODS = ['GET', 'POST', 'DELETE', 'PUT']  # Default to empty list (Log all the requests).
 ```
 
 ### Want to see the API information in local timezone? (Optional)
