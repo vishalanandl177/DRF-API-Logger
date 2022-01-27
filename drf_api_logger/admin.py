@@ -87,7 +87,10 @@ if database_log_enabled():
 
         def changelist_view(self, request, extra_context=None):
             response = super(APILogsAdmin, self).changelist_view(request, extra_context)
-            filtered_query_set = response.context_data["cl"].queryset
+            try:
+                filtered_query_set = response.context_data["cl"].queryset
+            except:
+                return response
             analytics_model = filtered_query_set.values('added_on__date').annotate(total=Count('id')).order_by('total')
             status_code_count_mode = filtered_query_set.values('id').values('status_code').annotate(
                 total=Count('id')).order_by('status_code')

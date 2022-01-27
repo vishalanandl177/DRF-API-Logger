@@ -45,6 +45,12 @@ class APILoggerMiddleware:
                     settings.DRF_API_LOGGER_SKIP_NAMESPACE) is list:
                 self.DRF_API_LOGGER_SKIP_NAMESPACE = settings.DRF_API_LOGGER_SKIP_NAMESPACE
 
+        self.DRF_API_LOGGER_METHODS = []
+        if hasattr(settings, 'DRF_API_LOGGER_METHODS'):
+            if type(settings.DRF_API_LOGGER_METHODS) is tuple or type(
+                    settings.DRF_API_LOGGER_METHODS) is list:
+                self.DRF_API_LOGGER_METHODS = settings.DRF_API_LOGGER_METHODS
+
     def __call__(self, request):
 
         # Run only if logger is enabled.
@@ -81,6 +87,11 @@ class APILoggerMiddleware:
 
             headers = get_headers(request=request)
             method = request.method
+
+            # Log only registered methods if available.
+            if len(self.DRF_API_LOGGER_METHODS) > 0 and method not in self.DRF_API_LOGGER_METHODS:
+                return self.get_response(request)
+
             if response.get('content-type') in ('application/json', 'application/vnd.api+json',):
                 if getattr(response, 'streaming', False):
                     response_body = '** Streaming **'
