@@ -1,6 +1,10 @@
-import re
 from django.conf import settings
+from gc import get_referents
+from types import ModuleType, FunctionType
+import re
+import sys
 
+BLACKLIST = type, ModuleType, FunctionType
 SENSITIVE_KEYS = ['password', 'token', 'access', 'refresh']
 if hasattr(settings, 'DRF_API_LOGGER_EXCLUDE_KEYS'):
     if type(settings.DRF_API_LOGGER_EXCLUDE_KEYS) in (list, tuple):
@@ -67,3 +71,20 @@ def mask_sensitive_data(data):
             data[key] = [mask_sensitive_data(item) for item in data[key]]
 
     return data
+
+def get_size(obj):
+    """sum size of object & members."""
+    if isinstance(obj, BLACKLIST):
+        raise TypeError('getsize() does not take argument of type: '+ str(type(obj)))
+    seen_ids = set()
+    size = 0
+    objects = [obj]
+    while objects:
+        need_referents = []
+        for obj in objects:
+            if not isinstance(obj, BLACKLIST) and id(obj) not in seen_ids:
+                seen_ids.add(id(obj))
+                size += sys.getsizeof(obj)
+                need_referents.append(obj)
+        objects = get_referents(*need_referents)
+    return size
