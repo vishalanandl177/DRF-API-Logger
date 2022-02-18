@@ -1,6 +1,7 @@
 from django.conf import settings
 from gc import get_referents
 from types import ModuleType, FunctionType
+from urllib.parse import urlsplit, parse_qs, urlencode
 import re
 import sys
 
@@ -72,8 +73,26 @@ def mask_sensitive_data(data):
 
     return data
 
+def mask_sensitive_data_url(url):
+    """
+    Hides sensitive keys specified in sensitive_keys settings from url query params.
+    """
+
+    parsed = urlsplit(url)
+    query_dict = parse_qs(parsed.query)
+    for key in query_dict.items():
+        if key[0] in SENSITIVE_KEYS:
+            query_dict[key[0]] = "***FILTERED***"
+    query_new = urlencode(query_dict, doseq=True)
+    parsed = parsed._replace(query=query_new)
+    url_new = (parsed.geturl())
+    return url_new
+
 def get_size(obj):
-    """sum size of object & members."""
+    """
+    sum size of object & members.
+    """
+    
     if isinstance(obj, BLACKLIST):
         raise TypeError('getsize() does not take argument of type: '+ str(type(obj)))
     seen_ids = set()
