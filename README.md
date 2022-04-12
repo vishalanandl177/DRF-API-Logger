@@ -1,5 +1,5 @@
 # DRF API Logger
-![version](https://img.shields.io/badge/version-1.0.10-blue.svg)
+![version](https://img.shields.io/badge/version-1.1.10-blue.svg)
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=total&units=none&left_color=black&right_color=orange&left_text=Downloads%20Total)](http://pepy.tech/project/drf-api-logger)
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=month&units=none&left_color=black&right_color=orange&left_text=Downloads%20Last%20Month)](https://pepy.tech/project/drf-api-logger)
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=week&units=none&left_color=black&right_color=orange&left_text=Downloads%20Last%20Week)](https://pepy.tech/project/drf-api-logger)
@@ -191,9 +191,8 @@ DRF_API_LOGGER_METHODS = ['GET', 'POST', 'DELETE', 'PUT']  # Default to empty li
 ```
 
 ### Want to see the API information in local timezone? (Optional)
-You can also identify slow APIs by specifying `DRF_API_LOGGER_TIMEDELTA` in settings.py.
-It is going to display the API request time after adding the timedelta specified in the settings.py file.
-It won't change the Database timezone.
+You can also change the timezone by specifying `DRF_API_LOGGER_TIMEDELTA` in settings.py.
+It won't change the Database timezone. It will still remain UTC or the timezone you have defined.
 ```python
 DRF_API_LOGGER_TIMEDELTA = 330 # UTC + 330 Minutes = IST (5:Hours, 30:Minutes ahead from UTC) 
 # Specify in minutes.

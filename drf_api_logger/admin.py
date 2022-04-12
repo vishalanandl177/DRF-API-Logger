@@ -3,11 +3,32 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib import admin
 from django.db.models import Count
+from django.http import HttpResponse
+
 from drf_api_logger.utils import database_log_enabled
 
 if database_log_enabled():
     from drf_api_logger.models import APILogsModel
     from django.utils.translation import gettext_lazy as _
+    import csv
+
+
+    class ExportCsvMixin:
+        def export_as_csv(self, request, queryset):
+            meta = self.model._meta
+            field_names = [field.name for field in meta.fields]
+
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = 'attachment; filename={}.csv'.format(meta)
+            writer = csv.writer(response)
+
+            writer.writerow(field_names)
+            for obj in queryset:
+                row = writer.writerow([getattr(obj, field) for field in field_names])
+
+            return response
+
+        export_as_csv.short_description = "Export Selected"
 
     class SlowAPIsFilter(admin.SimpleListFilter):
         title = _('API Performance')
@@ -54,7 +75,9 @@ if database_log_enabled():
 
             return queryset
 
-    class APILogsAdmin(admin.ModelAdmin):
+    class APILogsAdmin(admin.ModelAdmin, ExportCsvMixin):
+
+        actions = ["export_as_csv"]
 
         def __init__(self, model, admin_site):
             super().__init__(model, admin_site)
@@ -83,6 +106,7 @@ if database_log_enabled():
         exclude = ('added_on',)
 
         change_list_template = 'charts_change_list.html'
+        change_form_template = 'change_form.html'
         date_hierarchy = 'added_on'
 
         def changelist_view(self, request, extra_context=None):
@@ -108,7 +132,19 @@ if database_log_enabled():
             return response
 
         def get_queryset(self, request):
-            return super(APILogsAdmin, self).get_queryset(request)
+            drf_api_logger_default_database = 'default'
+            if hasattr(settings, 'DRF_API_LOGGER_DEFAULT_DATABASE'):
+                drf_api_logger_default_database = settings.DRF_API_LOGGER_DEFAULT_DATABASE
+            return super(APILogsAdmin, self).get_queryset(request).using(drf_api_logger_default_database)
+
+        def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+            if request.GET.get('export', False):
+                drf_api_logger_default_database = 'default'
+                if hasattr(settings, 'DRF_API_LOGGER_DEFAULT_DATABASE'):
+                    drf_api_logger_default_database = settings.DRF_API_LOGGER_DEFAULT_DATABASE
+                export_queryset = self.get_queryset(request).filter(pk=object_id).using(drf_api_logger_default_database)
+                return self.export_as_csv(request, export_queryset)
+            return super(APILogsAdmin, self).changeform_view(request, object_id, form_url, extra_context)
 
         def has_add_permission(self, request, obj=None):
             return False
