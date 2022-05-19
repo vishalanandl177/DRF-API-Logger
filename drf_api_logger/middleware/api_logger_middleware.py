@@ -56,8 +56,8 @@ class APILoggerMiddleware:
         # Run only if logger is enabled.
         if self.DRF_API_LOGGER_DATABASE or self.DRF_API_LOGGER_SIGNAL:
 
-            url_name = resolve(request.path).url_name
-            namespace = resolve(request.path).namespace
+            url_name = resolve(request.path_info).url_name
+            namespace = resolve(request.path_info).namespace
 
             # Always skip Admin panel
             if namespace == 'admin':
