@@ -98,7 +98,8 @@ if database_log_enabled():
         list_per_page = 20
         list_display = ('id', 'api', 'method', 'status_code', 'execution_time', 'added_on_time',)
         list_filter = ('added_on', 'status_code', 'method',)
-        search_fields = ('body', 'response', 'headers', 'api',)
+        #search_fields = ('body', 'response', 'headers', 'api',)
+        search_fields = ('api',)
         readonly_fields = (
             'execution_time', 'client_ip_address', 'api',
             'headers', 'body', 'method', 'response', 'status_code', 'added_on_time',
