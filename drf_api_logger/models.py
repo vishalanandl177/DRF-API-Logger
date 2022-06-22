@@ -30,7 +30,9 @@ if database_log_enabled():
         status_code = models.PositiveSmallIntegerField(help_text='Response status code', db_index=True)
         execution_time = models.DecimalField(decimal_places=5, max_digits=8,
                                              help_text='Server execution time (Not complete response time.)')
-
+        user = models.ForeignKey('auth.user', related_name = 'request_user', on_delete = models.SET_NULL, null = True)
+        response_size = models.DecimalField(max_digits=16, decimal_places=2, blank=True, null=True)
+        
         def __str__(self):
             return self.api
 

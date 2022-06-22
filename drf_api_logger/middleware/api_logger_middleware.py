@@ -4,10 +4,9 @@ import bleach
 from django.conf import settings
 from django.urls import resolve
 from django.utils import timezone
-
 from drf_api_logger import API_LOGGER_SIGNAL
 from drf_api_logger.start_logger_when_server_starts import LOGGER_THREAD
-from drf_api_logger.utils import get_headers, get_client_ip, mask_sensitive_data
+from drf_api_logger.utils import get_headers, get_client_ip, mask_sensitive_data, mask_sensitive_data_url, get_size
 
 """
 File: api_logger_middleware.py
@@ -120,7 +119,7 @@ class APILoggerMiddleware:
                     api = request.build_absolute_uri()
 
                 data = dict(
-                    api=api,
+                    api=mask_sensitive_data_url(api),
                     headers=mask_sensitive_data(headers),
                     body=mask_sensitive_data(request_data),
                     method=method,
@@ -128,7 +127,9 @@ class APILoggerMiddleware:
                     response=mask_sensitive_data(response_body),
                     status_code=response.status_code,
                     execution_time=time.time() - start_time,
-                    added_on=timezone.now()
+                    added_on=timezone.now(),
+                    user=request.user if (request.user and request.user.is_authenticated) else None,
+                    response_size=get_size(response.content)
                 )
                 if self.DRF_API_LOGGER_DATABASE:
                     if LOGGER_THREAD:
