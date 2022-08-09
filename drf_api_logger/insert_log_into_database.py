@@ -1,10 +1,12 @@
-from queue import Queue
 import time
-from django.conf import settings
+from queue import Queue
 from threading import Thread
+
+from django.conf import settings
 from django.db.utils import OperationalError
 
 from drf_api_logger.models import APILogsModel
+from drf_api_logger.utils import get_api_logger_model
 
 
 class InsertLogIntoDatabase(Thread):
@@ -61,7 +63,7 @@ class InsertLogIntoDatabase(Thread):
 
     def _insert_into_data_base(self, bulk_item):
         try:
-            APILogsModel.objects.using(self.DRF_API_LOGGER_DEFAULT_DATABASE).bulk_create(bulk_item)
+            get_api_logger_model().objects.using(self.DRF_API_LOGGER_DEFAULT_DATABASE).bulk_create(bulk_item)
         except OperationalError:
             raise Exception("""
             DRF API LOGGER EXCEPTION

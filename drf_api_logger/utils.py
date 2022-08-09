@@ -1,5 +1,7 @@
 import re
+
 from django.conf import settings
+from django.core.serializers.python import _get_model
 
 SENSITIVE_KEYS = ['password', 'token', 'access', 'refresh']
 if hasattr(settings, 'DRF_API_LOGGER_EXCLUDE_KEYS'):
@@ -67,3 +69,10 @@ def mask_sensitive_data(data):
             data[key] = [mask_sensitive_data(item) for item in data[key]]
 
     return data
+
+
+def get_api_logger_model():
+    fully_qualified_app_name = 'drf_api_logger.APILogsModel'
+    if hasattr(settings, 'DRF_API_LOGGER_CUSTOM_TABLE'):
+        fully_qualified_app_name = settings.DRF_API_LOGGER_CUSTOM_TABLE
+    return _get_model(fully_qualified_app_name)

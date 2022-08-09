@@ -5,10 +5,9 @@ from django.contrib import admin
 from django.db.models import Count
 from django.http import HttpResponse
 
-from drf_api_logger.utils import database_log_enabled
+from drf_api_logger.utils import database_log_enabled, get_api_logger_model
 
 if database_log_enabled():
-    from drf_api_logger.models import APILogsModel
     from django.utils.translation import gettext_lazy as _
     import csv
 
@@ -29,6 +28,7 @@ if database_log_enabled():
             return response
 
         export_as_csv.short_description = "Export Selected"
+
 
     class SlowAPIsFilter(admin.SimpleListFilter):
         title = _('API Performance')
@@ -75,6 +75,7 @@ if database_log_enabled():
 
             return queryset
 
+
     class APILogsAdmin(admin.ModelAdmin, ExportCsvMixin):
 
         actions = ["export_as_csv"]
@@ -92,17 +93,49 @@ if database_log_enabled():
         def added_on_time(self, obj):
             return (obj.added_on + timedelta(minutes=self._DRF_API_LOGGER_TIMEDELTA)).strftime("%d %b %Y %H:%M:%S")
 
+        def get_extra_list_display_fields(self):
+            if hasattr(settings, 'DRF_API_LOGGER_ADMIN_LIST_DISPLAY_FIELDS'):
+                return tuple(settings.DRF_API_LOGGER_ADMIN_LIST_DISPLAY_FIELDS)
+            else:
+                return tuple()
+
+        def get_extra_list_filter_fields(self):
+            if hasattr(settings, 'DRF_API_LOGGER_ADMIN_LIST_FILTER_FIELDS'):
+                return tuple(settings.DRF_API_LOGGER_ADMIN_LIST_FILTER_FIELDS)
+            else:
+                return tuple()
+
+        def get_extra_search_fields(self):
+            if hasattr(settings, 'DRF_API_LOGGER_ADMIN_SEARCH_FIELDS'):
+                return tuple(settings.DRF_API_LOGGER_ADMIN_SEARCH_FIELDS)
+            else:
+                return tuple()
+
+        def get_extra_readonly_fields(self):
+            if hasattr(settings, 'DRF_API_LOGGER_ADMIN_READONLY_FIELDS'):
+                return tuple(settings.DRF_API_LOGGER_ADMIN_READONLY_FIELDS)
+            else:
+                return ()
+
         added_on_time.admin_order_field = 'added_on'
         added_on_time.short_description = 'Added on'
 
         list_per_page = 20
-        list_display = ('id', 'api', 'method', 'status_code', 'execution_time', 'added_on_time',)
-        list_filter = ('added_on', 'status_code', 'method',)
-        search_fields = ('body', 'response', 'headers', 'api',)
+        list_display = ('id', 'api', 'method', 'status_code', 'execution_time',
+                        'added_on_time',) + settings.DRF_API_LOGGER_ADMIN_LIST_DISPLAY_FIELDS if hasattr(settings,
+                                                                                                         'DRF_API_LOGGER_ADMIN_LIST_DISPLAY_FIELDS') else ()
+        list_filter = ('added_on', 'status_code',
+                       'method',) + settings.DRF_API_LOGGER_ADMIN_LIST_FILTER_FIELDS if hasattr(settings,
+                                                                                                'DRF_API_LOGGER_ADMIN_LIST_FILTER_FIELDS') else ()
+        search_fields = (
+                        'body', 'response', 'headers', 'api',) + settings.DRF_API_LOGGER_ADMIN_SEARCH_FIELDS if hasattr(
+            settings,
+            'DRF_API_LOGGER_ADMIN_SEARCH_FIELDS') else ()
         readonly_fields = (
-            'execution_time', 'client_ip_address', 'api',
-            'headers', 'body', 'method', 'response', 'status_code', 'added_on_time',
-        )
+                              'execution_time', 'client_ip_address', 'api',
+                              'headers', 'body', 'method', 'response', 'status_code', 'added_on_time',
+                          ) + settings.DRF_API_LOGGER_ADMIN_READONLY_FIELDS if hasattr(settings,
+                                                                                       'DRF_API_LOGGER_ADMIN_READONLY_FIELDS') else ()
         exclude = ('added_on',)
 
         change_list_template = 'charts_change_list.html'
@@ -152,5 +185,8 @@ if database_log_enabled():
         def has_change_permission(self, request, obj=None):
             return False
 
+        def get_search_results(self, request, queryset, search_term):
+            return super().get_search_results(request, queryset, search_term)
 
-    admin.site.register(APILogsModel, APILogsAdmin)
+
+    admin.site.register(get_api_logger_model(), APILogsAdmin)

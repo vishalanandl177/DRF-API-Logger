@@ -277,6 +277,29 @@ class APILogsModel(Model):
 
 ```
 
+Extending DRF API Logger Model Schema:
+```
+class APILogs(AbstractAPILogsModel):
+   user_name = models.CharField(max_length=255, unique=False, blank=True, null=True, db_index=True)
+   user_id = models.IntegerField(db_index=True, default=-1, null=True, blank=True)
+
+    class Meta(AbstractAPILogsModel.Meta):
+        pass
+        
+### settings file entry ####
+
+DRF_API_LOGGER_CUSTOM_TABLE = 'common.APILogs'
+DRF_API_LOGGER_CUSTOM_DATA_PROVIDER = 'apps.common.utils.api_logger_extra_data_provider'
+DRF_API_LOGGER_ADMIN_LIST_DISPLAY_FIELDS = ('user_name', "user_id")
+DRF_API_LOGGER_ADMIN_LIST_FILTER_FIELDS = ('user_name', "user_id")
+DRF_API_LOGGER_ADMIN_SEARCH_FIELDS = ('user_name', "user_id")
+DRF_API_LOGGER_ADMIN_READONLY_FIELDS = ('user_name', "user_id")
+
+def api_logger_extra_data_provider(request):
+    ### do your processing and return a dictionary with the data to be inserted into new columns added in custom table
+    return {'user_name': 'user1', "user_id" : 1}
+
+```
 ### Note:
 After sometime, there will be too many data in the database. Searching and filter may get slower.
 If you want, you can delete or archive the older data.

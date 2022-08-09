@@ -1,6 +1,7 @@
+import importlib
 import json
 import time
-import bleach
+
 from django.conf import settings
 from django.urls import resolve
 from django.utils import timezone
@@ -130,6 +131,11 @@ class APILoggerMiddleware:
                     execution_time=time.time() - start_time,
                     added_on=timezone.now()
                 )
+                if hasattr(settings, 'DRF_API_LOGGER_CUSTOM_DATA_PROVIDER'):
+                    self.DRF_API_LOGGER_CUSTOM_DATA_PROVIDER = settings.DRF_API_LOGGER_CUSTOM_DATA_PROVIDER
+                    extra_data = self._process_custom_data_provider(request)
+                    data = {**data, **extra_data}
+
                 if self.DRF_API_LOGGER_DATABASE:
                     if LOGGER_THREAD:
                         d = data.copy()
@@ -145,3 +151,13 @@ class APILoggerMiddleware:
         else:
             response = self.get_response(request)
         return response
+
+    def _process_custom_data_provider(self, request):
+        try:
+            provider_function = self.DRF_API_LOGGER_CUSTOM_DATA_PROVIDER
+            mod_name, func_name = provider_function.rsplit('.', 1)
+            mod = importlib.import_module(mod_name)
+            func = getattr(mod, func_name)
+            return func(request)
+        except:
+            return dict()
