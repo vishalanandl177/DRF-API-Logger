@@ -93,30 +93,6 @@ if database_log_enabled():
         def added_on_time(self, obj):
             return (obj.added_on + timedelta(minutes=self._DRF_API_LOGGER_TIMEDELTA)).strftime("%d %b %Y %H:%M:%S")
 
-        def get_extra_list_display_fields(self):
-            if hasattr(settings, 'DRF_API_LOGGER_ADMIN_LIST_DISPLAY_FIELDS'):
-                return tuple(settings.DRF_API_LOGGER_ADMIN_LIST_DISPLAY_FIELDS)
-            else:
-                return tuple()
-
-        def get_extra_list_filter_fields(self):
-            if hasattr(settings, 'DRF_API_LOGGER_ADMIN_LIST_FILTER_FIELDS'):
-                return tuple(settings.DRF_API_LOGGER_ADMIN_LIST_FILTER_FIELDS)
-            else:
-                return tuple()
-
-        def get_extra_search_fields(self):
-            if hasattr(settings, 'DRF_API_LOGGER_ADMIN_SEARCH_FIELDS'):
-                return tuple(settings.DRF_API_LOGGER_ADMIN_SEARCH_FIELDS)
-            else:
-                return tuple()
-
-        def get_extra_readonly_fields(self):
-            if hasattr(settings, 'DRF_API_LOGGER_ADMIN_READONLY_FIELDS'):
-                return tuple(settings.DRF_API_LOGGER_ADMIN_READONLY_FIELDS)
-            else:
-                return ()
-
         added_on_time.admin_order_field = 'added_on'
         added_on_time.short_description = 'Added on'
 
