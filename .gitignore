@@ -1,2 +1,4 @@
 drf_api_logger.egg-info/
 .idea/
+/build/
+/dist/drf_api_logger-1.1.10-py3-none-any.whl
