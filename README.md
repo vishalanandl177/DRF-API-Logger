@@ -288,7 +288,7 @@ class APILogs(AbstractAPILogsModel):
         
 ### settings file entry ####
 
-DRF_API_LOGGER_CUSTOM_TABLE = 'common.APILogs'
+DRF_API_LOGGER_CUSTOM_TABLE = 'common.APILogs' # <app_name>.<table_name>
 DRF_API_LOGGER_CUSTOM_DATA_PROVIDER = 'apps.common.utils.api_logger_extra_data_provider'
 DRF_API_LOGGER_ADMIN_LIST_DISPLAY_FIELDS = ('user_name', "user_id")
 DRF_API_LOGGER_ADMIN_LIST_FILTER_FIELDS = ('user_name', "user_id")
