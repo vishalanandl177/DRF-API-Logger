@@ -91,16 +91,16 @@ class APILoggerMiddleware:
             # Only log required status codes if matching
             if self.DRF_API_LOGGER_STATUS_CODES and response.status_code not in self.DRF_API_LOGGER_STATUS_CODES:
                 return response
+            
+            method = request.method
+            # Log only registered methods if available.
+            if len(self.DRF_API_LOGGER_METHODS) > 0 and method not in self.DRF_API_LOGGER_METHODS:
+                return response
+
+            headers = get_headers(request=request)
 
             # Code to be executed for each request/response after
             # the view is called.
-
-            headers = get_headers(request=request)
-            method = request.method
-
-            # Log only registered methods if available.
-            if len(self.DRF_API_LOGGER_METHODS) > 0 and method not in self.DRF_API_LOGGER_METHODS:
-                return self.get_response(request)
 
             if response.get('content-type') in ('application/json', 'application/vnd.api+json',):
                 if getattr(response, 'streaming', False):
