@@ -1,6 +1,5 @@
 import json
 import time
-import bleach
 from django.conf import settings
 from django.urls import resolve
 from django.utils import timezone
@@ -62,8 +61,8 @@ class APILoggerMiddleware:
         # Run only if logger is enabled.
         if self.DRF_API_LOGGER_DATABASE or self.DRF_API_LOGGER_SIGNAL:
 
-            url_name = resolve(request.path).url_name
-            namespace = resolve(request.path).namespace
+            url_name = resolve(request.path_info).url_name
+            namespace = resolve(request.path_info).namespace
 
             # Always skip Admin panel
             if namespace == 'admin':
@@ -100,7 +99,7 @@ class APILoggerMiddleware:
 
             # Log only registered methods if available.
             if len(self.DRF_API_LOGGER_METHODS) > 0 and method not in self.DRF_API_LOGGER_METHODS:
-                return self.get_response(request)
+                return response
 
             if response.get('content-type') in ('application/json', 'application/vnd.api+json',):
                 if getattr(response, 'streaming', False):

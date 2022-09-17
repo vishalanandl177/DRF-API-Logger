@@ -11,12 +11,13 @@ if database_log_enabled():
     already_exists = False
 
     for t in threading.enumerate():
-        if t.getName() == LOG_THREAD_NAME:
+        if t.name == LOG_THREAD_NAME:
             already_exists = True
+            break
 
     if not already_exists:
         t = InsertLogIntoDatabase()
         t.daemon = True
-        t.setName(LOG_THREAD_NAME)
+        t.name = LOG_THREAD_NAME
         t.start()
         LOGGER_THREAD = t
