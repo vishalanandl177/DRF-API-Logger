@@ -4,8 +4,8 @@
 <!-- Override extrahead to add Chart.js -->
 {% block extrahead %}
 {{ block.super }}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.8.0/Chart.min.css" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.8.0/Chart.bundle.min.js"></script>
+<link rel="stylesheet" href="{% static "drf_api_logger/css/Chart.min.css" %}" />
+<script src="{% static "drf_api_logger/js/Chart.bundle.min.js" %}"></script>
 <script>
 
 document.addEventListener('DOMContentLoaded', () => {
