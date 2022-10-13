@@ -47,13 +47,20 @@ def database_log_enabled():
     return drf_api_logger_database
 
 
-def mask_sensitive_data(data):
+def mask_sensitive_data(data, mask_api_parameters=False):
     """
     Hides sensitive keys specified in sensitive_keys settings.
     Loops recursively over nested dictionaries.
+
+    When the mask_api_parameters parameter is set, the function will 
+    instead iterate over sensitive_keys and remove them from an api 
+    URL string.
     """
 
     if type(data) != dict:
+        if mask_api_parameters and type(data) == str:
+            for sensitive_key in SENSITIVE_KEYS:
+                data = re.sub('({}=)(.*?)($|&)'.format(sensitive_key), '\g<1>***FILTERED***\g<3>'.format(sensitive_key.upper()), data)
         return data
 
     for key, value in data.items():

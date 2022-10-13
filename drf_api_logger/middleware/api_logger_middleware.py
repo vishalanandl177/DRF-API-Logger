@@ -1,5 +1,6 @@
 import json
 import time
+import re
 from django.conf import settings
 from django.urls import resolve
 from django.utils import timezone
@@ -122,7 +123,7 @@ class APILoggerMiddleware:
                     api = request.build_absolute_uri()
 
                 data = dict(
-                    api=api,
+                    api=mask_sensitive_data(api, mask_api_parameters=True),
                     headers=mask_sensitive_data(headers),
                     body=mask_sensitive_data(request_data),
                     method=method,
