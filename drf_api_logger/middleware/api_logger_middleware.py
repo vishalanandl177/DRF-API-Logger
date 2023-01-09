@@ -1,7 +1,6 @@
 import importlib
 import json
 import time
-
 from django.conf import settings
 from django.urls import resolve
 from django.utils import timezone
@@ -63,8 +62,8 @@ class APILoggerMiddleware:
         # Run only if logger is enabled.
         if self.DRF_API_LOGGER_DATABASE or self.DRF_API_LOGGER_SIGNAL:
 
-            url_name = resolve(request.path).url_name
-            namespace = resolve(request.path).namespace
+            url_name = resolve(request.path_info).url_name
+            namespace = resolve(request.path_info).namespace
 
             # Always skip Admin panel
             if namespace == 'admin':
@@ -101,7 +100,7 @@ class APILoggerMiddleware:
 
             # Log only registered methods if available.
             if len(self.DRF_API_LOGGER_METHODS) > 0 and method not in self.DRF_API_LOGGER_METHODS:
-                return self.get_response(request)
+                return response
 
             if response.get('content-type') in ('application/json', 'application/vnd.api+json',):
                 if getattr(response, 'streaming', False):
@@ -139,10 +138,10 @@ class APILoggerMiddleware:
                 if self.DRF_API_LOGGER_DATABASE:
                     if LOGGER_THREAD:
                         d = data.copy()
-                        d['headers'] = json.dumps(d['headers'], indent=4)
+                        d['headers'] = json.dumps(d['headers'], indent=4, ensure_ascii=False)
                         if request_data:
-                            d['body'] = json.dumps(d['body'], indent=4)
-                        d['response'] = json.dumps(d['response'], indent=4)
+                            d['body'] = json.dumps(d['body'], indent=4, ensure_ascii=False)
+                        d['response'] = json.dumps(d['response'], indent=4, ensure_ascii=False)
                         LOGGER_THREAD.put_log_data(data=d)
                 if self.DRF_API_LOGGER_SIGNAL:
                     API_LOGGER_SIGNAL.listen(**data)
