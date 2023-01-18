@@ -1,5 +1,6 @@
 import json
 import time
+import re
 from django.conf import settings
 from django.urls import resolve
 from django.utils import timezone
@@ -101,8 +102,11 @@ class APILoggerMiddleware:
             if len(self.DRF_API_LOGGER_METHODS) > 0 and method not in self.DRF_API_LOGGER_METHODS:
                 return response
 
-            if response.get('content-type') in ('application/json', 'application/vnd.api+json',):
-                if getattr(response, 'streaming', False):
+            if response.get('content-type') in ('application/json', 'application/vnd.api+json', 'application/gzip'):
+                
+                if response.get('content-type') == 'application/gzip':
+                    response_body = '** GZIP Archive **'
+                elif getattr(response, 'streaming', False):
                     response_body = '** Streaming **'
                 else:
                     if type(response.content) == bytes:
@@ -119,7 +123,7 @@ class APILoggerMiddleware:
                     api = request.build_absolute_uri()
 
                 data = dict(
-                    api=api,
+                    api=mask_sensitive_data(api, mask_api_parameters=True),
                     headers=mask_sensitive_data(headers),
                     body=mask_sensitive_data(request_data),
                     method=method,
