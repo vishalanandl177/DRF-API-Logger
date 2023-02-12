@@ -242,18 +242,19 @@ DRF_API_LOGGER_PATH_TYPE possible values are:
 You can use the DRF API Logger Model to query some information.
 
 Note: Make sure to set "DRF_API_LOGGER_DATABASE = True" in settings.py file.
-```
+```python
 from drf_api_logger.models import APILogsModel
 
 """
 Example:
 Select records for status_code 200.
 """
+
 result_for_200_status_code = APILogsModel.objects.filter(status_code=200)
 ```
 
 DRF API Logger Model:
-```
+```python
 class APILogsModel(Model):
    id = models.BigAutoField(primary_key=True)
    api = models.CharField(max_length=1024, help_text='API URL')
@@ -281,4 +282,3 @@ class APILogsModel(Model):
 After sometime, there will be too many data in the database. Searching and filter may get slower.
 If you want, you can delete or archive the older data.
 To improve the searching or filtering, try to add indexes in the 'drf_api_logs' table.
-
