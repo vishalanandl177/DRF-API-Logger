@@ -106,6 +106,8 @@ class APILoggerMiddleware:
                 
                 if response.get('content-type') == 'application/gzip':
                     response_body = '** GZIP Archive **'
+                elif response.get('content-type') == 'application/octet-stream':
+                    response_body = '** Binary File **'
                 elif getattr(response, 'streaming', False):
                     response_body = '** Streaming **'
                 else:
