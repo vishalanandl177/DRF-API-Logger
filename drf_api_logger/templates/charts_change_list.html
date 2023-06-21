@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const chartData = [
     {% for item in analytics %}
-    {"date": "{{ item.added_on__date }}", "y": {{ item.total }}},
+    {"date": "{{ item.added_on__date.isoformat }}", "y": {{ item.total }}},
     {% endfor %}
   ];
 
