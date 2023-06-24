@@ -102,10 +102,12 @@ class APILoggerMiddleware:
             if len(self.DRF_API_LOGGER_METHODS) > 0 and method not in self.DRF_API_LOGGER_METHODS:
                 return response
 
-            if response.get('content-type') in ('application/json', 'application/vnd.api+json', 'application/gzip'):
+            if response.get('content-type') in ('application/json', 'application/vnd.api+json', 'application/gzip', 'application/octet-stream'):
                 
                 if response.get('content-type') == 'application/gzip':
                     response_body = '** GZIP Archive **'
+                elif response.get('content-type') == 'application/octet-stream':
+                    response_body = '** Binary File **'
                 elif getattr(response, 'streaming', False):
                     response_body = '** Streaming **'
                 else:
