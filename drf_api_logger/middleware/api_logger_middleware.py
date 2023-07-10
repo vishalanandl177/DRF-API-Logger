@@ -110,12 +110,15 @@ class APILoggerMiddleware:
             if self.DRF_API_LOGGER_ENABLE_TRACING:
                 if self.DRF_API_LOGGER_TRACING_ID_HEADER_NAME:
                     tracing_id = headers.get(self.DRF_API_LOGGER_TRACING_ID_HEADER_NAME)
-                else:
+                if not tracing_id:
+                    """
+                    If tracing is is not present in header, get it from function or uuid.
+                    """
                     if self.tracing_func_name:
                         tracing_id = self.tracing_func_name()
                     else:
                         tracing_id = str(uuid.uuid4())
-                    request.tracing_id = tracing_id
+                request.tracing_id = tracing_id
 
             # Code to be executed for each request before
             # the view (and later middleware) are called.
