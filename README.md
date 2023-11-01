@@ -1,5 +1,5 @@
 # DRF API Logger
-![version](https://img.shields.io/badge/version-1.1.14-blue.svg)
+![version](https://img.shields.io/badge/version-1.1.15-blue.svg)
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=total&units=none&left_color=black&right_color=orange&left_text=Downloads%20Total)](http://pepy.tech/project/drf-api-logger)
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=month&units=none&left_color=black&right_color=orange&left_text=Downloads%20Last%20Month)](https://pepy.tech/project/drf-api-logger)
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=week&units=none&left_color=black&right_color=orange&left_text=Downloads%20Last%20Week)](https://pepy.tech/project/drf-api-logger)
@@ -206,6 +206,20 @@ DRF_API_LOGGER_TIMEDELTA = 330 # UTC + 330 Minutes = IST (5:Hours, 30:Minutes ah
 ```python
 # Yoc can specify negative values for the countries behind the UTC timezone.
 DRF_API_LOGGER_TIMEDELTA = -30  # Example
+```
+
+### Ignore data based on maximum request or response body? (Optional)
+Request/Response bodies
+By default, DRF API LOGGER will save down the request and response bodies for each request for future viewing
+no matter how large. If DRF API LOGGER is used in production under heavy volume with
+large bodies this can have a huge impact on space/time performance.
+
+This behaviour can be configured with the following options additional:
+```python
+# DRF API LOGGER takes anything < 0 as no limit.
+# If response body > 1024 bytes, ignore.
+DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = 1024  # default to -1, no limit.
+DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = 1024  # default to -1, no limit.
 ```
 
 ### API with or without Host
