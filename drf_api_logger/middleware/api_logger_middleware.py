@@ -1,5 +1,6 @@
 import importlib
 import json
+import sys
 import time
 import uuid
 
@@ -72,6 +73,16 @@ class APILoggerMiddleware:
             mod = importlib.import_module(mod_name)
             self.tracing_func_name = getattr(mod, func_name)
 
+        self.DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = -1
+        if hasattr(settings, 'DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE'):
+            if type(settings.DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE) is int:
+                self.DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = settings.DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE
+
+        self.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = -1
+        if hasattr(settings, 'DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE'):
+            if type(settings.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE) is int:
+                self.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = settings.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE
+
     def __call__(self, request):
 
         # Run only if logger is enabled.
@@ -103,6 +114,12 @@ class APILoggerMiddleware:
             request_data = ''
             try:
                 request_data = json.loads(request.body) if request.body else ''
+                if self.DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE > -1:
+                    if sys.getsizeof(request_data) > self.DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE:
+                        """
+                        Ignore the request body if larger then specified.
+                        """
+                        request_data = ''
             except:
                 pass
 
@@ -142,10 +159,13 @@ class APILoggerMiddleware:
                 elif getattr(response, 'streaming', False):
                     response_body = '** Streaming **'
                 else:
-                    if type(response.content) == bytes:
+                    if type(response.content) is bytes:
                         response_body = json.loads(response.content.decode())
                     else:
                         response_body = json.loads(response.content)
+                if self.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE > -1:
+                    if sys.getsizeof(response_body) > self.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE:
+                        response_body = ''
                 if self.DRF_API_LOGGER_PATH_TYPE == 'ABSOLUTE':
                     api = request.build_absolute_uri()
                 elif self.DRF_API_LOGGER_PATH_TYPE == 'FULL_PATH':
@@ -169,10 +189,10 @@ class APILoggerMiddleware:
                 if self.DRF_API_LOGGER_DATABASE:
                     if LOGGER_THREAD:
                         d = data.copy()
-                        d['headers'] = json.dumps(d['headers'], indent=4, ensure_ascii=False)
+                        d['headers'] = json.dumps(d['headers'], indent=4, ensure_ascii=False) if d.get('headers') else ''
                         if request_data:
-                            d['body'] = json.dumps(d['body'], indent=4, ensure_ascii=False)
-                        d['response'] = json.dumps(d['response'], indent=4, ensure_ascii=False)
+                            d['body'] = json.dumps(d['body'], indent=4, ensure_ascii=False) if d.get('body') else ''
+                        d['response'] = json.dumps(d['response'], indent=4, ensure_ascii=False) if d.get('response') else ''
                         LOGGER_THREAD.put_log_data(data=d)
                 if self.DRF_API_LOGGER_SIGNAL:
                     if tracing_id:
