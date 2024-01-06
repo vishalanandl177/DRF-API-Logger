@@ -26,9 +26,9 @@ It logs all the API information for content type "application/json".
 9. Client IP Address
 
 
-You can log API information into the database or listen to the logger signals for different use-cases, or you can do both.
+You can log API information into the database or listen to the logger signals for different use cases, or you can do both.
 
-* The logger usage a separate thread to run, so it won't affect your API response time.
+* The logger uses a separate thread to run, so it won't affect your API response time.
 
 ## Installation
 
@@ -67,18 +67,18 @@ MIDDLEWARE = [
 ```
 
 
-#### * Add these lines in Django Rest Framework settings file.
+#### * Add these lines in the Django Rest Framework settings file.
 
 ## Store logs into the database
 Log every request into the database.
 ```python
 DRF_API_LOGGER_DATABASE = True  # Default to False
 ```
-* Logs will be available in Django Admin Panel.
+* Logs will be available in the Django Admin Panel.
 
-* The search bar will search in Request Body, Response, Headers and API URL.
+* The search bar will search in Request Body, Response, Headers, and API URL.
 
-* You can also filter the logs based on the "added_on" date, Status Code and Request Methods.
+* You can also filter the logs based on the "added_on" date, Status Code, and Request Methods.
 
 ![Alt text](https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/logs.png?raw=true, "Logger")
 
@@ -88,10 +88,10 @@ DRF_API_LOGGER_DATABASE = True  # Default to False
 
 ![Alt text](https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/details.png?raw=true, "Details")
 
-Note: Make sure to migrate. It will create a table for logger if "DRF_API_LOGGER_DATABASE" is True else if already exists, it will delete the table.
+Note: Make sure to migrate. It will create a table for the logger if "DRF_API_LOGGER_DATABASE" is True else if already exists, it will delete the table.
 
 ## To listen for the logger signals.
-Listen to the signal as soon as any API is called. So you can log the API data into a file or for different use-cases.
+Listen to the signal as soon as any API is called. So you can log the API data into a file or for different use cases.
 ```python
 DRF_API_LOGGER_SIGNAL = True  # Default to False
 ```
@@ -114,7 +114,7 @@ def listener_two(**kwargs):
 
 """
 It will listen to all the API logs whenever an API is called.
-You can also listen signals in multiple functions.
+You can also listen to signals in multiple functions.
 """
 API_LOGGER_SIGNAL.listen += listener_one
 API_LOGGER_SIGNAL.listen += listener_two
@@ -128,7 +128,7 @@ API_LOGGER_SIGNAL.listen -= listener_one
 
 ### Queue
 
-DRF API Logger usage queue to hold the logs before inserting into the database. Once queue is full, it bulk inserts into the database.
+DRF API Logger usage queue to hold the logs before inserting them into the database. Once the queue is full, it bulk inserts into the database.
 
 Specify the queue size.
 ```python
@@ -137,21 +137,21 @@ DRF_LOGGER_QUEUE_MAX_SIZE = 50  # Default to 50 if not specified.
 
 ### Interval
 
-DRF API Logger also waits for a period of time. If queue is not full and there are some logs to be inserted, it inserts after interval ends.
+DRF API Logger also waits for a period of time. If the queue is not full and there are some logs to be inserted, it inserts after the interval ends.
 
 Specify an interval (In Seconds).
 ```python
 DRF_LOGGER_INTERVAL = 10  # In Seconds, Default to 10 seconds if not specified.
 ```
-Note: The API call time (added_on) is a timezone aware datetime object. It is actual time of API call irrespective of interval value or queue size.
+Note: The API call time (added_on) is a timezone-aware datetime object. It is the actual time of the API call irrespective of interval value or queue size.
 ### Skip namespace
-You can skip the entire app to be logged into the database by specifying namespace of the app as list.
+You can skip the entire app to be logged into the database by specifying the namespace of the app as a list.
 ```python
 DRF_API_LOGGER_SKIP_NAMESPACE = ['APP_NAMESPACE1', 'APP_NAMESPACE2']
 ```
 
 ### Skip URL Name
-You can also skip any API to be logged by using url_name of the API.
+You can also skip any API to be logged by using the url_name of the API.
 ```python
 DRF_API_LOGGER_SKIP_URL_NAME = ['url_name1', 'url_name2']
 ```
@@ -167,7 +167,7 @@ DRF_API_LOGGER_EXCLUDE_KEYS = ['password', 'token', 'access', 'refresh']
 # Sensitive data will be replaced with "***FILTERED***".
 ```
 
-### Change default database to store API logs
+### Change the default database to store API logs
 ```python
 DRF_API_LOGGER_DEFAULT_DATABASE = 'default'  # Default to "default" if not specified
 """
@@ -178,7 +178,7 @@ Make sure to migrate the database specified in DRF_API_LOGGER_DEFAULT_DATABASE.
 ### Want to identify slow APIs? (Optional)
 You can also identify slow APIs by specifying `DRF_API_LOGGER_SLOW_API_ABOVE` in settings.py.
 
-A new filter (By API Performance) will be visible, and you can choose slow or fast API.
+A new filter (By API Performance) will be visible, and you can choose a slow or fast API.
 ```python
 DRF_API_LOGGER_SLOW_API_ABOVE = 200  # Default to None
 # Specify in milli-seconds.
@@ -187,18 +187,18 @@ DRF_API_LOGGER_SLOW_API_ABOVE = 200  # Default to None
 ### Want to log only selected request methods? (Optional)
 You can log only selected methods by specifying `DRF_API_LOGGER_METHODS` in settings.py.
 ```python
-DRF_API_LOGGER_METHODS = ['GET', 'POST', 'DELETE', 'PUT']  # Default to empty list (Log all the requests).
+DRF_API_LOGGER_METHODS = ['GET', 'POST', 'DELETE', 'PUT']  # Default to an empty list (Log all the requests).
 ```
 
 ### Want to log only selected response status codes? (Optional)
 You can log only selected responses by specifying `DRF_API_LOGGER_STATUS_CODES` in settings.py.
 ```python
-DRF_API_LOGGER_STATUS_CODES = [200, 400, 404, 500]  # Default to empty list (Log all responses).
+DRF_API_LOGGER_STATUS_CODES = [200, 400, 404, 500]  # Default to an empty list (Log all responses).
 ```
 
-### Want to see the API information in local timezone? (Optional)
+### Want to see the API information in the local timezone? (Optional)
 You can also change the timezone by specifying `DRF_API_LOGGER_TIMEDELTA` in settings.py.
-It won't change the Database timezone. It will still remain UTC or the timezone you have defined.
+It won't change the Database timezone. It will remain UTC or the timezone you have defined.
 ```python
 DRF_API_LOGGER_TIMEDELTA = 330 # UTC + 330 Minutes = IST (5:Hours, 30:Minutes ahead from UTC) 
 # Specify in minutes.
@@ -210,11 +210,11 @@ DRF_API_LOGGER_TIMEDELTA = -30  # Example
 
 ### Ignore data based on maximum request or response body? (Optional)
 Request/Response bodies
-By default, DRF API LOGGER will save down the request and response bodies for each request for future viewing
+By default, DRF API LOGGER will save the request and response bodies for each request for future viewing
 no matter how large. If DRF API LOGGER is used in production under heavy volume with
 large bodies this can have a huge impact on space/time performance.
 
-This behaviour can be configured with the following options additional:
+This behavior can be configured with the following options additional:
 ```python
 # DRF API LOGGER takes anything < 0 as no limit.
 # If response body > 1024 bytes, ignore.
@@ -223,7 +223,7 @@ DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = 1024  # default to -1, no limit.
 ```
 
 ### API with or without Host
-You can specify an endpoint of API should have absolute URI or not by setting this variable in DRF settings.py file.
+You can specify whether an endpoint of API should have absolute URI or not by setting this variable in the DRF settings.py file.
 ```python
 DRF_API_LOGGER_PATH_TYPE = 'ABSOLUTE'  # Default to ABSOLUTE if not specified
 # Possible values are ABSOLUTE, FULL_PATH or RAW_URI
@@ -231,22 +231,22 @@ DRF_API_LOGGER_PATH_TYPE = 'ABSOLUTE'  # Default to ABSOLUTE if not specified
 
 ### Tracing
 You can enable tracing by specifying `DRF_API_LOGGER_ENABLE_TRACING` in settings.py.
-This will add a tracing id (UUID.uuid4()) in the signals of DRF API Logger (if enabled).
+This will add a tracing ID (UUID.uuid4()) in the signals of the DRF API Logger (if enabled).
 
-In views, you can use request.tracing_id to get the tracing id.
+In views, you can use request.tracing_id to get the tracing ID.
 ```python
 DRF_API_LOGGER_ENABLE_TRACING = True  # default to False
 ```
 
-### Want to generate your own tracing uuid?
-By default, DRF API Logger usage uuid.uuid4() to generate tracing id.
-If you want to use your custom function to generate uuid, specify DRF_API_LOGGER_TRACING_FUNC in setting.py file.
+### Want to generate your tracing uuid?
+By default, the DRF API Logger uses uuid.uuid4() to generate tracing id.
+If you want to use your custom function to generate uuid, specify DRF_API_LOGGER_TRACING_FUNC in the setting.py file.
 ```python
 DRF_API_LOGGER_TRACING_FUNC = 'foo.bar.func_name'
 ```
 
 ### Tracing already present in headers?
-If the tracing id is already coming as a part of request headers, you can specify the header name.
+If the tracing ID is already coming as a part of request headers, you can specify the header name.
 ```python
 DRF_API_LOGGER_TRACING_ID_HEADER_NAME: str = 'X_TRACING_ID'  # Replace with actual header name.
 ```
@@ -274,10 +274,10 @@ DRF_API_LOGGER_PATH_TYPE possible values are:
     Note: Similar to ABSOLUTE but skip allowed hosts protection, so may return an insecure URI.
 
 
-### Use DRF API Logger Model to query 
+### Use the DRF API Logger Model to query 
 You can use the DRF API Logger Model to query some information.
 
-Note: Make sure to set "DRF_API_LOGGER_DATABASE = True" in settings.py file.
+Note: Make sure to set "DRF_API_LOGGER_DATABASE = True" in the settings.py file.
 ```python
 from drf_api_logger.models import APILogsModel
 
@@ -315,6 +315,6 @@ class APILogsModel(Model):
 ```
 
 ### Note:
-After sometime, there will be too many data in the database. Searching and filter may get slower.
+After some time, there will be too much data in the database. Searching and filtering may get slower.
 If you want, you can delete or archive the older data.
 To improve the searching or filtering, try to add indexes in the 'drf_api_logs' table.
