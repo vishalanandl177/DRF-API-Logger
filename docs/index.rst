@@ -1,5 +1,5 @@
 DRF API Logger
-==============
+##############
 
 |version| |Downloads| |image1| |Open Source| |Donate|
 
@@ -32,7 +32,7 @@ signals for different use cases, or you can do both.
    response time.
 
 Installation
-------------
+************
 
 Install or add drf-api-logger.
 
@@ -71,13 +71,12 @@ Add in MIDDLEWARE
        'drf_api_logger.middleware.api_logger_middleware.APILoggerMiddleware', # Add here
    ]
 
-\* Add these lines in the Django Rest Framework settings file.
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 
 Store logs into the database
-----------------------------
+****************************
 
-Log every request into the database.
+Log every request into the database. Add these lines in the Django Rest Framework settings file.
 
 .. code:: python
 
@@ -112,7 +111,7 @@ Note: Make sure to migrate. It will create a table for the logger if
 the table.
 
 To listen for the logger signals.
----------------------------------
+*********************************
 
 Listen to the signal as soon as any API is called. So you can log the
 API data into a file or for different use cases.
@@ -154,7 +153,7 @@ Example code to listen to the API Logger Signal.
    API_LOGGER_SIGNAL.listen -= listener_one
 
 Queue
-~~~~~
+=====
 
 DRF API Logger usage queue to hold the logs before inserting them into
 the database. Once the queue is full, it bulk inserts into the database.
@@ -166,7 +165,7 @@ Specify the queue size.
    DRF_LOGGER_QUEUE_MAX_SIZE = 50  # Default to 50 if not specified.
 
 Interval
-~~~~~~~~
+=====
 
 DRF API Logger also waits for a period of time. If the queue is not full
 and there are some logs to be inserted, it inserts after the interval
@@ -188,7 +187,7 @@ into the database by specifying the namespace of the app as a list.
    DRF_API_LOGGER_SKIP_NAMESPACE = ['APP_NAMESPACE1', 'APP_NAMESPACE2']
 
 Skip URL Name
-~~~~~~~~~~~~~
+=============
 
 You can also skip any API to be logged by using the url_name of the API.
 
@@ -199,7 +198,7 @@ You can also skip any API to be logged by using the url_name of the API.
 Note: It does not log Django Admin Panel API calls.
 
 Hide Sensitive Data From Logs
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+=============================
 
 You may wish to hide sensitive information from being exposed in the
 logs. You do this by setting ``DRF_API_LOGGER_EXCLUDE_KEYS`` in
@@ -211,7 +210,7 @@ settings.py to a list of your desired sensitive keys. The default is
    # Sensitive data will be replaced with "***FILTERED***".
 
 Change the default database to store API logs
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+=============================================
 
 .. code:: python
 
@@ -221,7 +220,7 @@ Change the default database to store API logs
    """
 
 Want to identify slow APIs? (Optional)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+======================================
 
 You can also identify slow APIs by specifying
 ``DRF_API_LOGGER_SLOW_API_ABOVE`` in settings.py.
@@ -235,7 +234,7 @@ slow or fast API.
    # Specify in milli-seconds.
 
 Want to log only selected request methods? (Optional)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+=====================================================
 
 You can log only selected methods by specifying
 ``DRF_API_LOGGER_METHODS`` in settings.py.
@@ -245,7 +244,7 @@ You can log only selected methods by specifying
    DRF_API_LOGGER_METHODS = ['GET', 'POST', 'DELETE', 'PUT']  # Default to an empty list (Log all the requests).
 
 Want to log only selected response status codes? (Optional)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+============================================================
 
 You can log only selected responses by specifying
 ``DRF_API_LOGGER_STATUS_CODES`` in settings.py.
@@ -255,7 +254,7 @@ You can log only selected responses by specifying
    DRF_API_LOGGER_STATUS_CODES = [200, 400, 404, 500]  # Default to an empty list (Log all responses).
 
 Want to see the API information in the local timezone? (Optional)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+=================================================================
 
 You can also change the timezone by specifying
 ``DRF_API_LOGGER_TIMEDELTA`` in settings.py. It won’t change the
@@ -272,7 +271,7 @@ Database timezone. It will remain UTC or the timezone you have defined.
    DRF_API_LOGGER_TIMEDELTA = -30  # Example
 
 Ignore data based on maximum request or response body? (Optional)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+=================================================================
 
 Request/Response bodies By default, DRF API LOGGER will save the request
 and response bodies for each request for future viewing no matter how
@@ -289,7 +288,7 @@ This behavior can be configured with the following options additional:
    DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = 1024  # default to -1, no limit.
 
 API with or without Host
-~~~~~~~~~~~~~~~~~~~~~~~~
+========================
 
 You can specify whether an endpoint of API should have absolute URI or
 not by setting this variable in the DRF settings.py file.
@@ -300,7 +299,7 @@ not by setting this variable in the DRF settings.py file.
    # Possible values are ABSOLUTE, FULL_PATH or RAW_URI
 
 Tracing
-~~~~~~~
+=======
 
 You can enable tracing by specifying ``DRF_API_LOGGER_ENABLE_TRACING``
 in settings.py. This will add a tracing ID (UUID.uuid4()) in the signals
@@ -313,7 +312,7 @@ In views, you can use request.tracing_id to get the tracing ID.
    DRF_API_LOGGER_ENABLE_TRACING = True  # default to False
 
 Want to generate your tracing uuid?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+===================================
 
 By default, the DRF API Logger uses uuid.uuid4() to generate tracing id.
 If you want to use your custom function to generate uuid, specify
@@ -324,7 +323,7 @@ DRF_API_LOGGER_TRACING_FUNC in the setting.py file.
    DRF_API_LOGGER_TRACING_FUNC = 'foo.bar.func_name'
 
 Tracing already present in headers?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+===================================
 
 If the tracing ID is already coming as a part of request headers, you
 can specify the header name.
@@ -359,7 +358,7 @@ values are: 1. ABSOLUTE (Default) :
    return an insecure URI.
 
 Use the DRF API Logger Model to query
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+=====================================
 
 You can use the DRF API Logger Model to query some information.
 
@@ -403,7 +402,7 @@ DRF API Logger Model:
          verbose_name_plural = 'API Logs'
 
 Note:
-~~~~~
+=====
 
 After some time, there will be too much data in the database. Searching
 and filtering may get slower. If you want, you can delete or archive the
