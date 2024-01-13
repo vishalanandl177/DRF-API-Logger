@@ -6,14 +6,23 @@ DRF API Logger
 An API Logger for your Django Rest Framework project.
 
 It logs all the API information for content type “application/json”. 
+
 -  URL 
+
 -  Request Body 
+
 -  Request Headers 
+
 -  Request Method 
+
 -  API Response
+
 -  Status Code 
+
 -  API Call Time 
+
 -  Server Execution Time 
+
 -  Client IP Address
 
 You can log API information into the database or listen to the logger
