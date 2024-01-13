@@ -169,7 +169,7 @@ Interval
 =====
 
 DRF API Logger also waits for a period of time. If the queue is not full
-and there are some logs to be inserted, it inserts after the interval
+and there are some logs to be inserted into the DB, it inserts after the interval
 ends.
 
 Specify an interval (In Seconds).
@@ -186,8 +186,7 @@ Specify an interval (In Seconds).
 Skip the namespace
 ==================
 
-Skip namespace You can skip the entire app to be logged
-   into the database by specifying the namespace of the app as a list.
+Skip namespace You can skip the entire app to be logged into the database by specifying the namespace of the app as a list.
 
 .. code:: python
 
@@ -294,17 +293,6 @@ This behavior can be configured with the following options additional:
    DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = 1024  # default to -1, no limit.
    DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = 1024  # default to -1, no limit.
 
-API with or without Host
-========================
-
-You can specify whether an endpoint of API should have absolute URI or
-not by setting this variable in the DRF settings.py file.
-
-.. code:: python
-
-   DRF_API_LOGGER_PATH_TYPE = 'ABSOLUTE'  # Default to ABSOLUTE if not specified
-   # Possible values are ABSOLUTE, FULL_PATH or RAW_URI
-
 Tracing
 =======
 
@@ -338,6 +326,17 @@ can specify the header name.
 .. code:: python
 
    DRF_API_LOGGER_TRACING_ID_HEADER_NAME: str = 'X_TRACING_ID'  # Replace with actual header name.
+
+API with or without Host
+========================
+
+You can specify whether an endpoint of API should have absolute URI or
+not by setting this variable in the DRF settings.py file.
+
+.. code:: python
+
+   DRF_API_LOGGER_PATH_TYPE = 'ABSOLUTE'  # Default to ABSOLUTE if not specified
+   # Possible values are ABSOLUTE, FULL_PATH or RAW_URI
 
 Considering we are accessing the following URL:
 http://127.0.0.1:8000/api/v1/?page=123 DRF_API_LOGGER_PATH_TYPE possible
