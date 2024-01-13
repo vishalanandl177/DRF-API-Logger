@@ -20,6 +20,7 @@ Installation
 ------------
 
 Install or add drf-api-logger.
+
 .. code:: bash
    pip install drf-api-logger
 
