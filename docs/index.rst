@@ -76,22 +76,18 @@ Log every request into the database.
 .. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/logs.png?raw=true,
    :alt: Logger
 
-   Alt text
 
 .. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/graph.png?raw=true,
    :alt: Graph
 
-   Alt text
 
 .. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/lists.png?raw=true,
    :alt: Lists
 
-   Alt text
 
 .. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/details.png?raw=true,
    :alt: Details
 
-   Alt text
 
 Note: Make sure to migrate. It will create a table for the logger if
 “DRF_API_LOGGER_DATABASE” is True else if already exists, it will delete
