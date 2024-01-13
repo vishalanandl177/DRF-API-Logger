@@ -401,13 +401,12 @@ DRF API Logger Model:
          verbose_name = 'API Log'
          verbose_name_plural = 'API Logs'
 
-Note:
-=====
 
-After some time, there will be too much data in the database. Searching
-and filtering may get slower. If you want, you can delete or archive the
-older data. To improve the searching or filtering, try to add indexes in
-the ‘drf_api_logs’ table.
+.. note::
+    After some time, there will be too much data in the database. Searching
+    and filtering may get slower. If you want, you can delete or archive the
+    older data. To improve the searching or filtering, try to add indexes in
+    the drf_api_logs table.
 
 .. |version| image:: https://img.shields.io/badge/version-1.1.15-blue.svg
 .. |Downloads| image:: https://static.pepy.tech/personalized-badge/drf-api-logger?period=total&units=none&left_color=black&right_color=orange&left_text=Downloads%20Total
