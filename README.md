@@ -221,13 +221,6 @@ DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = 1024  # default to -1, no limit.
 DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = 1024  # default to -1, no limit.
 ```
 
-### API with or without Host
-You can specify whether an endpoint of API should have absolute URI or not by setting this variable in the DRF settings.py file.
-```python
-DRF_API_LOGGER_PATH_TYPE = 'ABSOLUTE'  # Default to ABSOLUTE if not specified
-# Possible values are ABSOLUTE, FULL_PATH or RAW_URI
-```
-
 ### Tracing
 You can enable tracing by specifying `DRF_API_LOGGER_ENABLE_TRACING` in settings.py.
 This will add a tracing ID (UUID.uuid4()) in the signals of the DRF API Logger (if enabled).
@@ -248,6 +241,13 @@ DRF_API_LOGGER_TRACING_FUNC = 'foo.bar.func_name'
 If the tracing ID is already coming as a part of request headers, you can specify the header name.
 ```python
 DRF_API_LOGGER_TRACING_ID_HEADER_NAME: str = 'X_TRACING_ID'  # Replace with actual header name.
+```
+
+### API with or without Host
+You can specify whether an endpoint of API should have absolute URI or not by setting this variable in the DRF settings.py file.
+```python
+DRF_API_LOGGER_PATH_TYPE = 'ABSOLUTE'  # Default to ABSOLUTE if not specified
+# Possible values are ABSOLUTE, FULL_PATH or RAW_URI
 ```
 
 Considering we are accessing the following URL: http://127.0.0.1:8000/api/v1/?page=123
