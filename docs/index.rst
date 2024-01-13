@@ -177,10 +177,11 @@ Specify an interval (In Seconds).
 
    DRF_LOGGER_INTERVAL = 10  # In Seconds, Default to 10 seconds if not specified.
 
-Note: The API call time (added_on) is a timezone-aware datetime object.
-It is the actual time of the API call irrespective of interval value or
-queue size. ### Skip namespace You can skip the entire app to be logged
-into the database by specifying the namespace of the app as a list.
+.. note::
+   The API call time (added_on) is a timezone-aware datetime object.
+   It is the actual time of the API call irrespective of interval value or
+   queue size. ### Skip namespace You can skip the entire app to be logged
+   into the database by specifying the namespace of the app as a list.
 
 .. code:: python
 
@@ -402,7 +403,7 @@ DRF API Logger Model:
          verbose_name_plural = 'API Logs'
 
 
-.. note::
+.. warning::
     After some time, there will be too much data in the database. Searching
     and filtering may get slower. If you want, you can delete or archive the
     older data. To improve the searching or filtering, try to add indexes in
