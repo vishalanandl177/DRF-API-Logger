@@ -106,12 +106,13 @@ Log every request into the database. Add these lines in the Django Rest Framewor
    :alt: Details
 
 
-Note: Make sure to migrate. It will create a table for the logger if
-“DRF_API_LOGGER_DATABASE” is True else if already exists, it will delete
-the table.
+.. note::
+   Make sure to migrate. It will create a table for the logger if
+   “DRF_API_LOGGER_DATABASE” is True else if already exists, it will delete
+   the table.
 
-To listen for the logger signals.
-*********************************
+To listen for the logger signals
+********************************
 
 Listen to the signal as soon as any API is called. So you can log the
 API data into a file or for different use cases.
@@ -180,7 +181,12 @@ Specify an interval (In Seconds).
 .. note::
    The API call time (added_on) is a timezone-aware datetime object.
    It is the actual time of the API call irrespective of interval value or
-   queue size. ### Skip namespace You can skip the entire app to be logged
+   queue size.
+
+Skip the namespace
+==================
+
+Skip namespace You can skip the entire app to be logged
    into the database by specifying the namespace of the app as a list.
 
 .. code:: python
@@ -203,11 +209,11 @@ Hide Sensitive Data From Logs
 
 You may wish to hide sensitive information from being exposed in the
 logs. You do this by setting ``DRF_API_LOGGER_EXCLUDE_KEYS`` in
-settings.py to a list of your desired sensitive keys. The default is
+settings.py to a list of your desired sensitive keys.
 
 .. code:: python
 
-   DRF_API_LOGGER_EXCLUDE_KEYS = ['password', 'token', 'access', 'refresh']
+   DRF_API_LOGGER_EXCLUDE_KEYS = ['password', 'token', 'access', 'refresh']  # Default
    # Sensitive data will be replaced with "***FILTERED***".
 
 Change the default database to store API logs
