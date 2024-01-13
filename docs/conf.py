@@ -13,3 +13,4 @@ extensions = [
 napoleon_google_docstring = False  # Turn off googledoc strings
 napoleon_numpy_docstring = True  # Turn on numpydoc strings
 napoleon_use_ivar = True  # For maths symbology
+html_theme = 'sphinx_rtd_theme'
