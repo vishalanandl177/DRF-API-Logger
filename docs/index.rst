@@ -21,7 +21,8 @@ Installation
 
 Install or add drf-api-logger.
 
-.. code:: bash
+.. code:: python
+
    pip install drf-api-logger
 
 Add in INSTALLED_APPS
