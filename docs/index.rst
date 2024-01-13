@@ -20,7 +20,8 @@ Installation
 ------------
 
 Install or add drf-api-logger.
-``shell script pip install drf-api-logger``
+.. code:: bash
+   pip install drf-api-logger
 
 Add in INSTALLED_APPS
 
