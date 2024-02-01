@@ -1,5 +1,6 @@
 import re
 from django.conf import settings
+from django.urls import resolve
 
 SENSITIVE_KEYS = ['password', 'token', 'access', 'refresh']
 if hasattr(settings, 'DRF_API_LOGGER_EXCLUDE_KEYS'):
@@ -76,3 +77,17 @@ def mask_sensitive_data(data, mask_api_parameters=False):
             data[key] = [mask_sensitive_data(item) for item in data[key]]
 
     return data
+
+def get_view_from_request(request):
+    try:
+        return f"{resolve(request.path_info)._func_path}"
+    except:
+        return ""
+
+def get_user(request):
+    if hasattr(request, "user") and hasattr(request.user, "is_authenticated"):
+        is_authenticated = request.user.is_authenticated
+        if is_authenticated:
+            return request.user.id
+    else:
+        return None
