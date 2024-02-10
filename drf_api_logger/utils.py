@@ -80,7 +80,7 @@ def mask_sensitive_data(data, mask_api_parameters=False):
 
 def get_view_from_request(request):
     try:
-        return f"{resolve(request.path_info)._func_path}"
+        return f"{resolve(request.path_info)._func_path}"[:50]
     except:
         return ""
 
