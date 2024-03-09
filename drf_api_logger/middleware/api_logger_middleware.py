@@ -3,6 +3,7 @@ import json
 import sys
 import time
 import uuid
+import re
 
 from django.conf import settings
 from django.urls import resolve
@@ -149,9 +150,20 @@ class APILoggerMiddleware:
             if len(self.DRF_API_LOGGER_METHODS) > 0 and method not in self.DRF_API_LOGGER_METHODS:
                 return response
 
-            if response.get('content-type') in (
-                    'application/json', 'application/vnd.api+json', 'application/gzip', 'application/octet-stream'):
+            self.DRF_API_LOGGER_CONTENT_TYPES = [
+                "application/json",
+                "application/vnd.api+json",
+                "application/gzip",
+                "application/octet-stream",
+            ]
+            if hasattr(settings, "DRF_API_LOGGER_CONTENT_TYPES") and type(
+                settings.DRF_API_LOGGER_CONTENT_TYPES
+            ) in (list, tuple):
+                for content_type in settings.DRF_API_LOGGER_CONTENT_TYPES:
+                    if re.match(r"^application\/vnd\..+\+json$", content_type):
+                        self.DRF_API_LOGGER_CONTENT_TYPES.append(content_type)
 
+            if response.get("content-type") in self.DRF_API_LOGGER_CONTENT_TYPES:
                 if response.get('content-type') == 'application/gzip':
                     response_body = '** GZIP Archive **'
                 elif response.get('content-type') == 'application/octet-stream':
