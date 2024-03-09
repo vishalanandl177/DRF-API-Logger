@@ -195,6 +195,18 @@ You can log only selected responses by specifying `DRF_API_LOGGER_STATUS_CODES` 
 DRF_API_LOGGER_STATUS_CODES = [200, 400, 404, 500]  # Default to an empty list (Log all responses).
 ```
 
+### Want to log custom content types? (Optional)
+You can log custom content types by specifying `DRF_API_LOGGER_CONTENT_TYPES` in settings.py.
+The specified content types will be added alongside with default content types.
+```python
+DRF_API_LOGGER_CONTENT_TYPES = [
+    "application/json",
+    "application/vnd.api+json",
+    "application/gzip",
+    "application/octet-stream",
+]  # Default content types.
+```
+
 ### Want to see the API information in the local timezone? (Optional)
 You can also change the timezone by specifying `DRF_API_LOGGER_TIMEDELTA` in settings.py.
 It won't change the Database timezone. It will remain UTC or the timezone you have defined.
@@ -203,7 +215,7 @@ DRF_API_LOGGER_TIMEDELTA = 330 # UTC + 330 Minutes = IST (5:Hours, 30:Minutes ah
 # Specify in minutes.
 ```
 ```python
-# Yoc can specify negative values for the countries behind the UTC timezone.
+# You can specify negative values for the countries behind the UTC timezone.
 DRF_API_LOGGER_TIMEDELTA = -30  # Example
 ```
 
