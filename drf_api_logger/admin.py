@@ -96,11 +96,11 @@ if database_log_enabled():
         added_on_time.short_description = 'Added on'
 
         list_per_page = 20
-        list_display = ('id', 'api', 'method', 'status_code', 'execution_time', 'added_on_time',)
+        list_display = ('id', 'api', 'user_id', 'method', 'status_code', 'execution_time', 'added_on_time',)
         list_filter = ('added_on', 'status_code', 'method',)
         search_fields = ('body', 'response', 'headers', 'api',)
         readonly_fields = (
-            'execution_time', 'client_ip_address', 'api',
+            'execution_time', 'client_ip_address', 'api', 'view',
             'headers', 'body', 'method', 'response', 'status_code', 'added_on_time',
         )
         exclude = ('added_on',)
