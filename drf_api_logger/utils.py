@@ -60,7 +60,7 @@ def mask_sensitive_data(data, mask_api_parameters=False):
         if mask_api_parameters and type(data) is str:
             for sensitive_key in SENSITIVE_KEYS:
                 data = re.sub('({}=)(.*?)($|&)'.format(sensitive_key),
-                              '\g<1>***FILTERED***\g<3>'.format(sensitive_key.upper()), data)
+                              '\\g<1>***FILTERED***\\g<3>'.format(sensitive_key.upper()), data)
         # new code
         if type(data) is list:
             data = [mask_sensitive_data(item) for item in data]
