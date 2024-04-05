@@ -24,49 +24,49 @@ class APILoggerMiddleware:
         self.get_response = get_response
         # One-time configuration and initialization.
 
-        self.DRF_API_LOGGER_DATABASE = False
+        self.database = False
         if hasattr(settings, 'DRF_API_LOGGER_DATABASE'):
-            self.DRF_API_LOGGER_DATABASE = settings.DRF_API_LOGGER_DATABASE
+            self.database = settings.DRF_API_LOGGER_DATABASE
 
-        self.DRF_API_LOGGER_SIGNAL = False
+        self.signal = False
         if hasattr(settings, 'DRF_API_LOGGER_SIGNAL'):
-            self.DRF_API_LOGGER_SIGNAL = settings.DRF_API_LOGGER_SIGNAL
+            self.signal = settings.DRF_API_LOGGER_SIGNAL
 
-        self.DRF_API_LOGGER_PATH_TYPE = 'ABSOLUTE'
+        self.path_type = 'ABSOLUTE'
         if hasattr(settings, 'DRF_API_LOGGER_PATH_TYPE'):
             if settings.DRF_API_LOGGER_PATH_TYPE in ['ABSOLUTE', 'RAW_URI', 'FULL_PATH']:
-                self.DRF_API_LOGGER_PATH_TYPE = settings.DRF_API_LOGGER_PATH_TYPE
+                self.path_type = settings.DRF_API_LOGGER_PATH_TYPE
 
-        self.DRF_API_LOGGER_SKIP_URL_NAME = []
+        self.skip_url_name = []
         if hasattr(settings, 'DRF_API_LOGGER_SKIP_URL_NAME'):
             if type(settings.DRF_API_LOGGER_SKIP_URL_NAME) is tuple or type(
                     settings.DRF_API_LOGGER_SKIP_URL_NAME) is list:
-                self.DRF_API_LOGGER_SKIP_URL_NAME = settings.DRF_API_LOGGER_SKIP_URL_NAME
+                self.skip_url_name = settings.DRF_API_LOGGER_SKIP_URL_NAME
 
-        self.DRF_API_LOGGER_SKIP_NAMESPACE = []
+        self.skip_namespace = []
         if hasattr(settings, 'DRF_API_LOGGER_SKIP_NAMESPACE'):
             if type(settings.DRF_API_LOGGER_SKIP_NAMESPACE) is tuple or type(
                     settings.DRF_API_LOGGER_SKIP_NAMESPACE) is list:
-                self.DRF_API_LOGGER_SKIP_NAMESPACE = settings.DRF_API_LOGGER_SKIP_NAMESPACE
+                self.skip_namespace = settings.DRF_API_LOGGER_SKIP_NAMESPACE
 
-        self.DRF_API_LOGGER_METHODS = []
+        self.methods = []
         if hasattr(settings, 'DRF_API_LOGGER_METHODS'):
             if type(settings.DRF_API_LOGGER_METHODS) is tuple or type(
                     settings.DRF_API_LOGGER_METHODS) is list:
-                self.DRF_API_LOGGER_METHODS = settings.DRF_API_LOGGER_METHODS
+                self.methods = settings.DRF_API_LOGGER_METHODS
 
-        self.DRF_API_LOGGER_STATUS_CODES = []
+        self.status_codes = []
         if hasattr(settings, 'DRF_API_LOGGER_STATUS_CODES'):
             if type(settings.DRF_API_LOGGER_STATUS_CODES) is tuple or type(
                     settings.DRF_API_LOGGER_STATUS_CODES) is list:
-                self.DRF_API_LOGGER_STATUS_CODES = settings.DRF_API_LOGGER_STATUS_CODES
+                self.status_codes = settings.DRF_API_LOGGER_STATUS_CODES
 
-        self.DRF_API_LOGGER_ENABLE_TRACING = False
-        self.DRF_API_LOGGER_TRACING_ID_HEADER_NAME = None
+        self.enable_tracing = False
+        self.tracing_id_header_name = None
         if hasattr(settings, 'DRF_API_LOGGER_ENABLE_TRACING'):
-            self.DRF_API_LOGGER_ENABLE_TRACING = settings.DRF_API_LOGGER_ENABLE_TRACING
-            if self.DRF_API_LOGGER_ENABLE_TRACING and hasattr(settings, 'DRF_API_LOGGER_TRACING_ID_HEADER_NAME'):
-                self.DRF_API_LOGGER_TRACING_ID_HEADER_NAME = settings.DRF_API_LOGGER_TRACING_ID_HEADER_NAME
+            self.enable_tracing = settings.DRF_API_LOGGER_ENABLE_TRACING
+            if self.enable_tracing and hasattr(settings, 'DRF_API_LOGGER_TRACING_ID_HEADER_NAME'):
+                self.tracing_id_header_name = settings.DRF_API_LOGGER_TRACING_ID_HEADER_NAME
 
         self.tracing_func_name = None
         if hasattr(settings, 'DRF_API_LOGGER_TRACING_FUNC'):
@@ -74,20 +74,20 @@ class APILoggerMiddleware:
             mod = importlib.import_module(mod_name)
             self.tracing_func_name = getattr(mod, func_name)
 
-        self.DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = -1
+        self.max_request_body_size = -1
         if hasattr(settings, 'DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE'):
             if type(settings.DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE) is int:
-                self.DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = settings.DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE
+                self.max_request_body_size = settings.DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE
 
-        self.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = -1
+        self.max_reponse_body_size = -1
         if hasattr(settings, 'DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE'):
             if type(settings.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE) is int:
-                self.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = settings.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE
+                self.max_reponse_body_size = settings.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE
 
     def __call__(self, request):
 
         # Run only if logger is enabled.
-        if self.DRF_API_LOGGER_DATABASE or self.DRF_API_LOGGER_SIGNAL:
+        if self.database or self.signal:
 
             url_name = resolve(request.path_info).url_name
             namespace = resolve(request.path_info).namespace
@@ -97,11 +97,11 @@ class APILoggerMiddleware:
                 return self.get_response(request)
 
             # Skip for url name
-            if url_name in self.DRF_API_LOGGER_SKIP_URL_NAME:
+            if url_name in self.skip_url_name:
                 return self.get_response(request)
 
             # Skip entire app using namespace
-            if namespace in self.DRF_API_LOGGER_SKIP_NAMESPACE:
+            if namespace in self.skip_namespace:
                 return self.get_response(request)
 
             # Code to be executed for each request/response after
@@ -115,8 +115,8 @@ class APILoggerMiddleware:
             request_data = ''
             try:
                 request_data = json.loads(request.body) if request.body else ''
-                if self.DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE > -1:
-                    if sys.getsizeof(request_data) > self.DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE:
+                if self.max_request_body_size > -1:
+                    if sys.getsizeof(request_data) > self.max_request_body_size:
                         """
                         Ignore the request body if larger then specified.
                         """
@@ -125,9 +125,9 @@ class APILoggerMiddleware:
                 pass
 
             tracing_id = None
-            if self.DRF_API_LOGGER_ENABLE_TRACING:
-                if self.DRF_API_LOGGER_TRACING_ID_HEADER_NAME:
-                    tracing_id = headers.get(self.DRF_API_LOGGER_TRACING_ID_HEADER_NAME)
+            if self.enable_tracing:
+                if self.tracing_id_header_name:
+                    tracing_id = headers.get(self.tracing_id_header_name)
                 if not tracing_id:
                     """
                     If tracing is is not present in header, get it from function or uuid.
@@ -143,14 +143,14 @@ class APILoggerMiddleware:
             response = self.get_response(request)
 
             # Only log required status codes if matching
-            if self.DRF_API_LOGGER_STATUS_CODES and response.status_code not in self.DRF_API_LOGGER_STATUS_CODES:
+            if self.status_codes and response.status_code not in self.status_codes:
                 return response
 
             # Log only registered methods if available.
-            if len(self.DRF_API_LOGGER_METHODS) > 0 and method not in self.DRF_API_LOGGER_METHODS:
+            if len(self.methods) > 0 and method not in self.methods:
                 return response
 
-            self.DRF_API_LOGGER_CONTENT_TYPES = [
+            self.content_types = [
                 "application/json",
                 "application/vnd.api+json",
                 "application/gzip",
@@ -161,9 +161,9 @@ class APILoggerMiddleware:
             ) in (list, tuple):
                 for content_type in settings.DRF_API_LOGGER_CONTENT_TYPES:
                     if re.match(r"^application\/vnd\..+\+json$", content_type):
-                        self.DRF_API_LOGGER_CONTENT_TYPES.append(content_type)
+                        self.content_types.append(content_type)
 
-            if response.get("content-type") in self.DRF_API_LOGGER_CONTENT_TYPES:
+            if response.get("content-type") in self.content_types:
                 if response.get('content-type') == 'application/gzip':
                     response_body = '** GZIP Archive **'
                 elif response.get('content-type') == 'application/octet-stream':
@@ -175,14 +175,14 @@ class APILoggerMiddleware:
                         response_body = json.loads(response.content.decode())
                     else:
                         response_body = json.loads(response.content)
-                if self.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE > -1:
-                    if sys.getsizeof(response_body) > self.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE:
+                if self.max_reponse_body_size > -1:
+                    if sys.getsizeof(response_body) > self.max_reponse_body_size:
                         response_body = ''
-                if self.DRF_API_LOGGER_PATH_TYPE == 'ABSOLUTE':
+                if self.path_type == 'ABSOLUTE':
                     api = request.build_absolute_uri()
-                elif self.DRF_API_LOGGER_PATH_TYPE == 'FULL_PATH':
+                elif self.path_type == 'FULL_PATH':
                     api = request.get_full_path()
-                elif self.DRF_API_LOGGER_PATH_TYPE == 'RAW_URI':
+                elif self.path_type == 'RAW_URI':
                     api = request.get_raw_uri()
                 else:
                     api = request.build_absolute_uri()
@@ -192,13 +192,15 @@ class APILoggerMiddleware:
                     headers=mask_sensitive_data(headers),
                     body=mask_sensitive_data(request_data),
                     method=method,
+                    user=request.user if request.user.is_authenticated else None,
+                    username=request.user.username if request.user.is_authenticated else None,
                     client_ip_address=get_client_ip(request),
                     response=mask_sensitive_data(response_body),
                     status_code=response.status_code,
                     execution_time=time.time() - start_time,
-                    added_on=timezone.now()
+                    timestamp=timezone.now()
                 )
-                if self.DRF_API_LOGGER_DATABASE:
+                if self.database:
                     if LOGGER_THREAD:
                         d = data.copy()
                         d['headers'] = json.dumps(d['headers'], indent=4, ensure_ascii=False) if d.get('headers') else ''
@@ -206,7 +208,7 @@ class APILoggerMiddleware:
                             d['body'] = json.dumps(d['body'], indent=4, ensure_ascii=False) if d.get('body') else ''
                         d['response'] = json.dumps(d['response'], indent=4, ensure_ascii=False) if d.get('response') else ''
                         LOGGER_THREAD.put_log_data(data=d)
-                if self.DRF_API_LOGGER_SIGNAL:
+                if self.signal:
                     if tracing_id:
                         data.update({
                             'tracing_id': tracing_id

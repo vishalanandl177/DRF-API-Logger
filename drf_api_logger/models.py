@@ -1,5 +1,6 @@
 from django.db import models
-
+from django.contrib.auth.models import User
+from django.utils.translation import gettext_lazy as _
 from drf_api_logger.utils import database_log_enabled
 
 
@@ -10,26 +11,29 @@ if database_log_enabled():
     class BaseModel(models.Model):
         id = models.BigAutoField(primary_key=True)
 
-        added_on = models.DateTimeField()
+        timestamp = models.DateTimeField(verbose_name=_('Timestamp'), auto_now_add=True)
 
         def __str__(self):
             return str(self.id)
 
         class Meta:
             abstract = True
-            ordering = ('-added_on',)
+            ordering = ('-timestamp',)
 
 
-    class APILogsModel(BaseModel):
-        api = models.CharField(max_length=1024, help_text='API URL')
-        headers = models.TextField()
-        body = models.TextField()
-        method = models.CharField(max_length=10, db_index=True)
-        client_ip_address = models.CharField(max_length=50)
-        response = models.TextField()
-        status_code = models.PositiveSmallIntegerField(help_text='Response status code', db_index=True)
+    class APILogs(BaseModel):
+        api = models.CharField(max_length=1024, verbose_name=_('API URL'), db_index=True)
+        user = models.ForeignKey(User, verbose_name=_('User'), db_index=True, on_delete=models.DO_NOTHING, null=True)
+        username = models.CharField(max_length=255, verbose_name=_('User name'), null=True, db_index=True)
+        headers = models.TextField(verbose_name=_('Request headers'))
+        body = models.TextField(verbose_name=_('Request body'))
+        method = models.CharField(max_length=10, db_index=True, verbose_name=_('Request method'))
+        client_ip_address = models.CharField(max_length=50, verbose_name=_('Client IP'))
+        response = models.TextField(verbose_name=_('Response'))
+        status_code = models.PositiveSmallIntegerField(db_index=True, verbose_name=_('Status code'))
         execution_time = models.DecimalField(decimal_places=5, max_digits=8,
-                                             help_text='Server execution time (Not complete response time.)')
+                                             help_text=_('Server execution time (Not complete response time.)'),
+                                             verbose_name=_('Execution time'))
 
         def __str__(self):
             return self.api
