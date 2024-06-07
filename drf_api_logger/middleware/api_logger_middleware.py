@@ -164,6 +164,7 @@ class APILoggerMiddleware:
                 "application/vnd.api+json",
                 "application/gzip",
                 "application/octet-stream",
+                "text/calendar",
             ]
             if hasattr(settings, "DRF_API_LOGGER_CONTENT_TYPES") and type(
                 settings.DRF_API_LOGGER_CONTENT_TYPES
@@ -179,6 +180,9 @@ class APILoggerMiddleware:
                     response_body = '** Binary File **'
                 elif getattr(response, 'streaming', False):
                     response_body = '** Streaming **'
+                elif response.get('content-type') == 'text/calendar':
+                    response_body = '** Calendar **'
+
                 else:
                     if type(response.content) is bytes:
                         response_body = json.loads(response.content.decode())
