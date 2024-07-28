@@ -24,7 +24,7 @@ if database_log_enabled():
 
             writer.writerow(field_names)
             for obj in queryset:
-                row = writer.writerow([getattr(obj, field) for field in field_names])
+                writer.writerow([getattr(obj, field) for field in field_names])
 
             return response
 
@@ -39,7 +39,7 @@ if database_log_enabled():
         def __init__(self, request, params, model, model_admin):
             super().__init__(request, params, model, model_admin)
             if hasattr(settings, 'DRF_API_LOGGER_SLOW_API_ABOVE'):
-                if type(settings.DRF_API_LOGGER_SLOW_API_ABOVE) == int:  # Making sure for integer value.
+                if isinstance(settings.DRF_API_LOGGER_SLOW_API_ABOVE, int):  # Making sure for integer value.
                     self._DRF_API_LOGGER_SLOW_API_ABOVE = settings.DRF_API_LOGGER_SLOW_API_ABOVE / 1000  # Converting to seconds.
 
         def lookups(self, request, model_admin):
@@ -83,10 +83,10 @@ if database_log_enabled():
             super().__init__(model, admin_site)
             self._DRF_API_LOGGER_TIMEDELTA = 0
             if hasattr(settings, 'DRF_API_LOGGER_SLOW_API_ABOVE'):
-                if type(settings.DRF_API_LOGGER_SLOW_API_ABOVE) == int:  # Making sure for integer value.
+                if isinstance(settings.DRF_API_LOGGER_SLOW_API_ABOVE, int):  # Making sure for integer value.
                     self.list_filter += (SlowAPIsFilter,)
             if hasattr(settings, 'DRF_API_LOGGER_TIMEDELTA'):
-                if type(settings.DRF_API_LOGGER_TIMEDELTA) == int:  # Making sure for integer value.
+                if isinstance(settings.DRF_API_LOGGER_TIMEDELTA, int):  # Making sure for integer value.
                     self._DRF_API_LOGGER_TIMEDELTA = settings.DRF_API_LOGGER_TIMEDELTA
 
         def added_on_time(self, obj):
@@ -113,7 +113,7 @@ if database_log_enabled():
             response = super(APILogsAdmin, self).changelist_view(request, extra_context)
             try:
                 filtered_query_set = response.context_data["cl"].queryset
-            except:
+            except Exception:
                 return response
             analytics_model = filtered_query_set.values('added_on__date').annotate(total=Count('id')).order_by('total')
             status_code_count_mode = filtered_query_set.values('id').values('status_code').annotate(

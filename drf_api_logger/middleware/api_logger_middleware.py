@@ -13,11 +13,6 @@ from drf_api_logger import API_LOGGER_SIGNAL
 from drf_api_logger.start_logger_when_server_starts import LOGGER_THREAD
 from drf_api_logger.utils import get_headers, get_client_ip, mask_sensitive_data
 
-"""
-File: api_logger_middleware.py
-Class: APILoggerMiddleware
-"""
-
 
 class APILoggerMiddleware:
     def __init__(self, get_response):
@@ -121,7 +116,7 @@ class APILoggerMiddleware:
                         Ignore the request body if larger then specified.
                         """
                         request_data = ''
-            except:
+            except Exception:
                 pass
 
             tracing_id = None
@@ -198,14 +193,13 @@ class APILoggerMiddleware:
                     execution_time=time.time() - start_time,
                     added_on=timezone.now()
                 )
-                if self.DRF_API_LOGGER_DATABASE:
-                    if LOGGER_THREAD:
-                        d = data.copy()
-                        d['headers'] = json.dumps(d['headers'], indent=4, ensure_ascii=False) if d.get('headers') else ''
-                        if request_data:
-                            d['body'] = json.dumps(d['body'], indent=4, ensure_ascii=False) if d.get('body') else ''
-                        d['response'] = json.dumps(d['response'], indent=4, ensure_ascii=False) if d.get('response') else ''
-                        LOGGER_THREAD.put_log_data(data=d)
+                if self.DRF_API_LOGGER_DATABASE and LOGGER_THREAD:
+                    d = data.copy()
+                    d['headers'] = json.dumps(d['headers'], indent=4, ensure_ascii=False) if d.get('headers') else ''
+                    if request_data:
+                        d['body'] = json.dumps(d['body'], indent=4, ensure_ascii=False) if d.get('body') else ''
+                    d['response'] = json.dumps(d['response'], indent=4, ensure_ascii=False) if d.get('response') else ''
+                    LOGGER_THREAD.put_log_data(data=d)
                 if self.DRF_API_LOGGER_SIGNAL:
                     if tracing_id:
                         data.update({
