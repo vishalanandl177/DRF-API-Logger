@@ -84,7 +84,16 @@ class APILoggerMiddleware:
             if type(settings.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE) is int:
                 self.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = settings.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE
 
+    def is_static_or_media_request(self, path):
+        static_url = getattr(settings, 'STATIC_URL', '/static/')
+        media_url = getattr(settings, 'MEDIA_URL', '/media/')
+        
+        return path.startswith(static_url) or path.startswith(media_url)
+
     def __call__(self, request):
+        # Skip logging for static and media files
+        if self.is_static_or_media_request(request.path):
+            return self.get_response(request)
 
         # Run only if logger is enabled.
         if self.DRF_API_LOGGER_DATABASE or self.DRF_API_LOGGER_SIGNAL:
@@ -155,6 +164,7 @@ class APILoggerMiddleware:
                 "application/vnd.api+json",
                 "application/gzip",
                 "application/octet-stream",
+                "text/calendar",
             ]
             if hasattr(settings, "DRF_API_LOGGER_CONTENT_TYPES") and type(
                 settings.DRF_API_LOGGER_CONTENT_TYPES
@@ -170,6 +180,9 @@ class APILoggerMiddleware:
                     response_body = '** Binary File **'
                 elif getattr(response, 'streaming', False):
                     response_body = '** Streaming **'
+                elif response.get('content-type') == 'text/calendar':
+                    response_body = '** Calendar **'
+
                 else:
                     if type(response.content) is bytes:
                         response_body = json.loads(response.content.decode())
