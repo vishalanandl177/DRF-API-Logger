@@ -13,7 +13,11 @@ It logs all the API information for content type “application/json”.
 
 -  Request Headers 
 
--  Request Method 
+-  Request Method
+
+-  Logged-in User
+
+-  View
 
 -  API Response
 
@@ -394,6 +398,12 @@ DRF API Logger Model:
       method = models.CharField(max_length=10, db_index=True)
       client_ip_address = models.CharField(max_length=50)
       response = models.TextField()
+      user = models.ForeignKey(
+            AUTH_USER_MODEL,
+            null=True,
+            on_delete=models.SET_NULL,
+        )
+      view = models.CharField(max_length=50)
       status_code = models.PositiveSmallIntegerField(help_text='Response status code', db_index=True)
       execution_time = models.DecimalField(decimal_places=5, max_digits=8,
                                           help_text='Server execution time (Not complete response time.)')

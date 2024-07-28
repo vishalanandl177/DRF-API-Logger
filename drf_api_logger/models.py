@@ -1,7 +1,8 @@
 from django.db import models
-
+from django.conf import settings
 from drf_api_logger.utils import database_log_enabled
 
+AUTH_USER_MODEL = getattr(settings, "AUTH_USER_MODEL", "auth.User")
 
 if database_log_enabled():
     """
@@ -27,6 +28,12 @@ if database_log_enabled():
         method = models.CharField(max_length=10, db_index=True)
         client_ip_address = models.CharField(max_length=50)
         response = models.TextField()
+        user = models.ForeignKey(
+            AUTH_USER_MODEL,
+            null=True,
+            on_delete=models.SET_NULL,
+        )
+        view = models.CharField(max_length=50)
         status_code = models.PositiveSmallIntegerField(help_text='Response status code', db_index=True)
         execution_time = models.DecimalField(decimal_places=5, max_digits=8,
                                              help_text='Server execution time (Not complete response time.)')
