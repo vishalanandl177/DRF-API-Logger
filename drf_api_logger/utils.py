@@ -25,7 +25,7 @@ def get_client_ip(request):
         else:
             ip = request.META.get('REMOTE_ADDR')
         return ip
-    except:
+    except Exception:
         return ''
 
 
@@ -60,8 +60,8 @@ def mask_sensitive_data(data, mask_api_parameters=False):
         if mask_api_parameters and type(data) is str:
             for sensitive_key in SENSITIVE_KEYS:
                 data = re.sub('({}=)(.*?)($|&)'.format(sensitive_key),
-                              '\g<1>***FILTERED***\g<3>'.format(sensitive_key.upper()), data)
-        # new code
+                              '\\g<1>***FILTERED***\\g<3>'.format(sensitive_key.upper()), data)
+
         if type(data) is list:
             data = [mask_sensitive_data(item) for item in data]
         return data
