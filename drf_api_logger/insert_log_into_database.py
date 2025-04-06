@@ -141,3 +141,4 @@ class InsertLogIntoDatabase(Thread):
         """
         self._stop_event.set()
         self._start_bulk_insertion()
+        exit(0)

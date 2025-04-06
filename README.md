@@ -1,5 +1,5 @@
 # DRF API Logger
-![version](https://img.shields.io/badge/version-1.1.18-blue.svg)
+![version](https://img.shields.io/badge/version-1.1.19-blue.svg)
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=total&units=none&left_color=black&right_color=orange&left_text=Downloads%20Total)](http://pepy.tech/project/drf-api-logger)
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=month&units=none&left_color=black&right_color=orange&left_text=Downloads%20Last%20Month)](https://pepy.tech/project/drf-api-logger)
 [![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
