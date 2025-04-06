@@ -47,3 +47,4 @@ class LoggerConfig(AppConfig):
                     t.daemon = True              # Make it a daemon so it shuts down with the main thread
                     t.name = LOG_THREAD_NAME     # Assign a name to the thread for easy identification
                     t.start()                    # Start the background log insertion thread
+                    LOGGER_THREAD = t

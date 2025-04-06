@@ -11,7 +11,6 @@ from django.utils import timezone
 
 from drf_api_logger import API_LOGGER_SIGNAL
 from drf_api_logger.apps import LOGGER_THREAD
-# from drf_api_logger.start_logger_when_server_starts import LOGGER_THREAD
 from drf_api_logger.utils import get_headers, get_client_ip, mask_sensitive_data
 
 
@@ -83,7 +82,8 @@ class APILoggerMiddleware:
     def is_static_or_media_request(self, path):
         static_url = getattr(settings, 'STATIC_URL', '/static/')
         media_url = getattr(settings, 'MEDIA_URL', '/media/')
-        
+        if static_url == '/' or media_url == '/':
+            return False
         return path.startswith(static_url) or path.startswith(media_url)
 
     def __call__(self, request):
