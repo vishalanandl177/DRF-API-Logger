@@ -10,7 +10,8 @@ from django.urls import resolve
 from django.utils import timezone
 
 from drf_api_logger import API_LOGGER_SIGNAL
-from drf_api_logger.start_logger_when_server_starts import LOGGER_THREAD
+from drf_api_logger.apps import LOGGER_THREAD
+# from drf_api_logger.start_logger_when_server_starts import LOGGER_THREAD
 from drf_api_logger.utils import get_headers, get_client_ip, mask_sensitive_data
 
 

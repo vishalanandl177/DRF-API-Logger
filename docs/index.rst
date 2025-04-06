@@ -414,7 +414,7 @@ DRF API Logger Model:
     older data. To improve the searching or filtering, try to add indexes in
     the drf_api_logs table.
 
-.. |version| image:: https://img.shields.io/badge/version-1.1.16-blue.svg
+.. |version| image:: https://img.shields.io/badge/version-1.1.17-blue.svg
 .. |Downloads| image:: https://static.pepy.tech/personalized-badge/drf-api-logger?period=total&units=none&left_color=black&right_color=orange&left_text=Downloads%20Total
    :target: http://pepy.tech/project/drf-api-logger
 .. |image1| image:: https://static.pepy.tech/personalized-badge/drf-api-logger?period=month&units=none&left_color=black&right_color=orange&left_text=Downloads%20Last%20Month
