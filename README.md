@@ -3,7 +3,7 @@
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=total&units=none&left_color=black&right_color=orange&left_text=Downloads%20Total)](http://pepy.tech/project/drf-api-logger)
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=month&units=none&left_color=black&right_color=orange&left_text=Downloads%20Last%20Month)](https://pepy.tech/project/drf-api-logger)
 [![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
-[![Donate](https://img.shields.io/badge/$-support-ff69b4.svg?style=flat)](https://paypal.me/chynybekov)  
+[![Donate](https://img.shields.io/badge/$-support-ff69b4.svg?style=flat)](https://buymeacoffee.com/riptechlead)  
 
 <a href="https://discord.gg/eeYansFDCT"><img src="https://img.shields.io/badge/Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white" alt="Join Community Badge"/></a>
 <a href="https://www.instagram.com/coderssecret/"><img src="https://img.shields.io/badge/Instagram-E4405F?style=for-the-badge&logo=instagram&logoColor=white" alt="Join Instagram"/></a>
