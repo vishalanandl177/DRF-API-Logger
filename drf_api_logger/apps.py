@@ -25,8 +25,15 @@ class LoggerConfig(AppConfig):
         """
         global LOGGER_THREAD
 
-        # Prevent running this logic in the autoreloader subprocess (used during development)
-        if os.environ.get('RUN_MAIN') == 'true':
+        # Check if we should start the logger thread
+        # In development with Django's runserver, RUN_MAIN prevents duplicate threads
+        # In production (Gunicorn, uWSGI, etc.), we always start the thread
+        should_start_thread = (
+            os.environ.get('RUN_MAIN') == 'true' or  # Django dev server main process
+            os.environ.get('RUN_MAIN') is None       # Production environments
+        )
+        
+        if should_start_thread:
             # Check if database logging is enabled via settings
             if database_log_enabled():
                 from drf_api_logger.insert_log_into_database import InsertLogIntoDatabase
