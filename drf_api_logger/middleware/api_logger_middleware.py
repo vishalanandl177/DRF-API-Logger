@@ -81,11 +81,18 @@ class APILoggerMiddleware:
                 self.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = settings.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE
 
     def is_static_or_media_request(self, path):
-        static_url = getattr(settings, 'STATIC_URL', '/static/')
-        media_url = getattr(settings, 'MEDIA_URL', '/media/')
-        if static_url == '/' or media_url == '/':
-            return False
-        return path.startswith(static_url) or path.startswith(media_url)
+        static_url = getattr(settings, 'STATIC_URL', None)
+        media_url = getattr(settings, 'MEDIA_URL', None)
+        
+        # Check static URL
+        if static_url and static_url != '/' and path.startswith(static_url):
+            return True
+        
+        # Check media URL
+        if media_url and media_url != '/' and path.startswith(media_url):
+            return True
+        
+        return False
 
     def __call__(self, request):
         # Skip logging for static and media files
