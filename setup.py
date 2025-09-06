@@ -14,9 +14,8 @@ import setuptools
 
 
 def get_long_desc():
-    with open("README.md", "r") as fh:
-        long_description = fh.read()
-    return long_description
+    with open("README.md", "r", encoding="utf-8") as fh:
+        return fh.read()
 
 
 setuptools.setup(
