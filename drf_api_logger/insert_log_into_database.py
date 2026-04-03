@@ -73,6 +73,8 @@ class InsertLogIntoDatabase(Thread):
         Args:
             data (dict): Dictionary containing fields for APILogsModel.
         """
+        if self.custom_handler:
+            data = self.custom_handler(data)
         self._queue.put(APILogsModel(**data))
 
         # If queue is full, trigger immediate flush to the DB
