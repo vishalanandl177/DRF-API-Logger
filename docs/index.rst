@@ -3,32 +3,34 @@ DRF API Logger
 
 |version| |Downloads| |image1| |Open Source| |Donate|
 
-An API Logger for your Django Rest Framework project.
+A comprehensive API logging solution for Django Rest Framework projects that captures detailed request/response information with zero performance impact.
 
-It logs all the API information for content type “application/json”. 
+It logs all the API information for content type "application/json".
 
--  URL 
+-  URL
 
--  Request Body 
+-  Request Body
 
--  Request Headers 
+-  Request Headers
 
--  Request Method 
+-  Request Method
 
 -  API Response
 
--  Status Code 
+-  Status Code
 
--  API Call Time 
+-  API Call Time
 
--  Server Execution Time 
+-  Server Execution Time
 
 -  Client IP Address
+
+-  Profiling Breakdown (SQL time, query count, middleware time — optional)
 
 You can log API information into the database or listen to the logger
 signals for different use cases, or you can do both.
 
--  The logger uses a separate thread to run, so it won’t affect your API
+-  The logger uses a separate thread to run, so it won't affect your API
    response time.
 
 Installation
@@ -87,28 +89,27 @@ Log every request into the database. Add these lines in the Django Rest Framewor
 -  The search bar will search in Request Body, Response, Headers, and
    API URL.
 
--  You can also filter the logs based on the “added_on” date, Status
+-  You can also filter the logs based on the "added_on" date, Status
    Code, and Request Methods.
 
-.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/logs.png?raw=true,
-   :alt: Logger
+**Admin Dashboard**
 
+.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/01-admin-dashboard.png
+   :alt: Admin Dashboard
 
-.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/graph.png?raw=true,
-   :alt: Graph
+**API Logs List with Charts & SQL Query Count**
 
+.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/02-api-logs-list.png
+   :alt: API Logs List
 
-.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/lists.png?raw=true,
-   :alt: Lists
+**Detailed Log View with Data Masking**
 
-
-.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/details.png?raw=true,
-   :alt: Details
-
+.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/06-api-log-detail-echo-masked.png
+   :alt: Log Detail with Masked Data
 
 .. note::
    Make sure to migrate. It will create a table for the logger if
-   “DRF_API_LOGGER_DATABASE” is True else if already exists, it will delete
+   "DRF_API_LOGGER_DATABASE" is True else if already exists, it will delete
    the table.
 
 To listen for the logger signals
@@ -239,6 +240,45 @@ slow or fast API.
    DRF_API_LOGGER_SLOW_API_ABOVE = 200  # Default to None
    # Specify in milli-seconds.
 
+API Profiling
+=============
+
+Enable per-request latency breakdown to identify performance bottlenecks in production — without attaching a profiler.
+
+.. code:: python
+
+   DRF_API_LOGGER_ENABLE_PROFILING = True   # Default: False
+   DRF_API_LOGGER_PROFILING_SQL_TRACKING = True  # Default: True
+
+When enabled, each logged request includes a profiling breakdown:
+
+- **Middleware time** (before and after view)
+- **View + Serialization time**
+- **SQL time** and query count (production-safe via ``connection.force_debug_cursor``)
+- **Auto-diagnosis** hints for common performance issues
+
+**Slow SQL Query Detection:**
+
+.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/03-api-log-detail-slow-sql.png
+   :alt: Slow SQL Query Detection
+
+**N+1 Query & High Query Count:**
+
+.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/05-api-log-detail-n-plus-one.png
+   :alt: N+1 Query Detection
+
+**Middleware Overhead & Data Masking:**
+
+.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/04-api-log-detail-login-masked.png
+   :alt: Middleware Overhead Detection
+
+**Auto-Diagnosis Patterns:**
+
+- SQL > 70% of total + queries >= 10 → *N+1 query problem likely*
+- SQL > 70% of total + queries < 5 → *Few but slow queries — check indexes*
+- SQL < 20% + high total time → *Bottleneck in business logic or external calls*
+- Middleware > 10% of total → *Middleware overhead is unusually high*
+
 Want to log only selected request methods? (Optional)
 =====================================================
 
@@ -263,7 +303,7 @@ Want to see the API information in the local timezone? (Optional)
 =================================================================
 
 You can also change the timezone by specifying
-``DRF_API_LOGGER_TIMEDELTA`` in settings.py. It won’t change the
+``DRF_API_LOGGER_TIMEDELTA`` in settings.py. It won't change the
 Database timezone. It will remain UTC or the timezone you have defined.
 
 .. code:: python
@@ -273,7 +313,7 @@ Database timezone. It will remain UTC or the timezone you have defined.
 
 .. code:: python
 
-   # Yoc can specify negative values for the countries behind the UTC timezone.
+   # You can specify negative values for the countries behind the UTC timezone.
    DRF_API_LOGGER_TIMEDELTA = -30  # Example
 
 Ignore data based on maximum request or response body? (Optional)
@@ -368,7 +408,7 @@ Use the DRF API Logger Model to query
 
 You can use the DRF API Logger Model to query some information.
 
-Note: Make sure to set “DRF_API_LOGGER_DATABASE = True” in the
+Note: Make sure to set "DRF_API_LOGGER_DATABASE = True" in the
 settings.py file.
 
 .. code:: python
@@ -398,6 +438,8 @@ DRF API Logger Model:
       execution_time = models.DecimalField(decimal_places=5, max_digits=8,
                                           help_text='Server execution time (Not complete response time.)')
       added_on = models.DateTimeField()
+      profiling_data = models.TextField(null=True)       # JSON profiling breakdown (when enabled)
+      sql_query_count = models.PositiveIntegerField(null=True)  # For admin filtering
 
       def __str__(self):
          return self.api
@@ -414,7 +456,7 @@ DRF API Logger Model:
     older data. To improve the searching or filtering, try to add indexes in
     the drf_api_logs table.
 
-.. |version| image:: https://img.shields.io/badge/version-1.1.19-blue.svg
+.. |version| image:: https://img.shields.io/badge/version-1.2.0-blue.svg
 .. |Downloads| image:: https://static.pepy.tech/personalized-badge/drf-api-logger?period=total&units=none&left_color=black&right_color=orange&left_text=Downloads%20Total
    :target: http://pepy.tech/project/drf-api-logger
 .. |image1| image:: https://static.pepy.tech/personalized-badge/drf-api-logger?period=month&units=none&left_color=black&right_color=orange&left_text=Downloads%20Last%20Month
