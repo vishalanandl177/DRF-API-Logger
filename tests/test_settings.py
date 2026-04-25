@@ -97,7 +97,7 @@ MEDIA_URL = '/media/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # DRF API Logger settings for testing
-DRF_API_LOGGER_DATABASE = False  # Default off, enable in specific tests
+DRF_API_LOGGER_DATABASE = True   # Enabled so models and admin are loaded for testing
 DRF_API_LOGGER_SIGNAL = False    # Default off, enable in specific tests
 DRF_LOGGER_QUEUE_MAX_SIZE = 50
 DRF_LOGGER_INTERVAL = 10
@@ -117,6 +117,8 @@ DRF_API_LOGGER_SKIP_NAMESPACE = []
 DRF_API_LOGGER_ENABLE_TRACING = False
 DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = -1
 DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = -1
+DRF_API_LOGGER_ENABLE_PROFILING = False
+DRF_API_LOGGER_PROFILING_SQL_TRACKING = True
 
 # REST Framework configuration
 REST_FRAMEWORK = {

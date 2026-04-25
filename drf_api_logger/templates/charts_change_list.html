@@ -91,6 +91,54 @@ document.addEventListener('DOMContentLoaded', () => {
           }
       });
 
+      {% if profiling_enabled and sql_distribution %}
+      var sqlCtx = document.getElementById('sqlQueryChart').getContext('2d');
+      var sqlChartData = [
+        {% for item in sql_distribution %}
+        {"date": "{{ item.added_on__date.isoformat }}", "y": {{ item.avg_queries|floatformat:1 }}},
+        {% endfor %}
+      ];
+
+      sqlChartData.forEach(function(d) {
+        d.x = new Date(d.date);
+      });
+
+      new Chart(sqlCtx, {
+        type: 'bar',
+        data: {
+          datasets: [{
+            label: 'Avg SQL queries per request',
+            data: sqlChartData,
+            backgroundColor: 'rgb(255, 152, 0)',
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            xAxes: [{
+              type: 'time',
+              time: {
+                unit: 'day',
+                round: 'day',
+                tooltipFormat: 'DD/MM/YYYY',
+                displayFormats: { day: 'MMM D' }
+              }
+            }],
+            yAxes: [{
+              ticks: { beginAtZero: true },
+              scaleLabel: {
+                display: true,
+                labelString: 'Queries'
+              }
+            }]
+          },
+          title: {
+            display: true,
+            text: 'Average SQL queries per request (daily)'
+          }
+        }
+      });
+      {% endif %}
   };
 });
 </script>
@@ -104,6 +152,11 @@ document.addEventListener('DOMContentLoaded', () => {
 <div style="width: 80%; margin-top: 24px;">
   <canvas style="margin-bottom: 30px; width: 60%; height: 50%;" id="statusCodeChart"></canvas>
 </div>
+{% if profiling_enabled %}
+<div style="width: 80%; margin-top: 24px;">
+  <canvas style="margin-bottom: 30px; width: 60%; height: 50%;" id="sqlQueryChart"></canvas>
+</div>
+{% endif %}
 <!-- Render the rest of the ChangeList view -->
 {{ block.super }}
 {% endblock %}

@@ -1,6 +1,6 @@
 # DRF API Logger
 
-[![Version](https://img.shields.io/badge/version-1.1.21-blue.svg)](https://github.com/vishalanandl177/DRF-API-Logger)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/vishalanandl177/DRF-API-Logger)
 [![Python](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org)
 [![Django](https://img.shields.io/badge/django-3.2+-green.svg)](https://djangoproject.com)
 [![DRF](https://img.shields.io/badge/djangorestframework-3.12+-orange.svg)](https://www.django-rest-framework.org)
@@ -20,6 +20,7 @@ DRF API Logger automatically captures and stores comprehensive API information:
 - **🎯 Flexible Storage**: Database logging and/or real-time signal notifications
 - **📈 Analytics**: Built-in admin dashboard with charts and performance metrics
 - **🔧 Highly Configurable**: Extensive filtering and customization options
+- **🔬 API Profiling**: Per-request latency breakdown with auto-diagnosis (SQL, middleware, business logic)
 
 ### 🌐 Community & Support
 
@@ -85,15 +86,17 @@ DRF_API_LOGGER_DATABASE = True
 
 ### Admin Dashboard Screenshots
 
-<div align="center">
+**Admin Home**
 
-| Feature | Screenshot |
-|---------|------------|
-| **📊 Overview & Analytics** | ![Analytics](https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/graph.png) |
-| **📋 Log Listing** | ![Log List](https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/lists.png) |
-| **🔍 Detailed View** | ![Log Details](https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/master/details.png) |
+![Admin Dashboard](screenshots/01-admin-dashboard.png)
 
-</div>
+**Log Listing with Charts & SQL Query Count**
+
+![API Logs List](screenshots/02-api-logs-list.png)
+
+**Detailed Log View with Data Masking**
+
+![Log Detail - Masked Data](screenshots/06-api-log-detail-echo-masked.png)
 
 ### Signal-Based Logging
 
@@ -221,6 +224,43 @@ DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = 1024   # bytes, -1 for no limit
 DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = 2048  # bytes, -1 for no limit
 ```
 
+### API Profiling
+
+Enable per-request latency breakdown to identify performance bottlenecks in production:
+
+```python
+# settings.py
+DRF_API_LOGGER_ENABLE_PROFILING = True   # Default: False
+DRF_API_LOGGER_PROFILING_SQL_TRACKING = True  # Default: True (can disable if overhead unwanted)
+```
+
+When enabled, each logged request includes a profiling breakdown showing:
+- **Middleware time** (before and after view)
+- **View + Serialization time**
+- **SQL time** and query count (production-safe via `connection.force_debug_cursor`)
+- **Auto-diagnosis** hints for common performance issues
+
+**Slow SQL Query Detection:**
+
+![Slow SQL](screenshots/03-api-log-detail-slow-sql.png)
+
+**N+1 Query & High Query Count:**
+
+![N+1 Queries](screenshots/05-api-log-detail-n-plus-one.png)
+
+**Middleware Overhead & Data Masking:**
+
+![Middleware Overhead](screenshots/04-api-log-detail-login-masked.png)
+
+**Auto-Diagnosis Patterns:**
+
+| Pattern | Diagnosis |
+|---|---|
+| SQL > 70% of total + queries >= 10 | N+1 query problem likely |
+| SQL > 70% of total + queries < 5 | Few but slow queries — check indexes |
+| SQL < 20% + high total time | Bottleneck in business logic or external calls |
+| Middleware > 10% of total | Middleware overhead is unusually high |
+
 ### Content Type & Timezone
 
 **Custom Content Types:**
@@ -325,6 +365,8 @@ class APILogsModel(models.Model):
     status_code = models.PositiveSmallIntegerField(db_index=True)
     execution_time = models.DecimalField(decimal_places=5, max_digits=8)
     added_on = models.DateTimeField()
+    profiling_data = models.TextField(null=True)       # JSON profiling breakdown (when profiling enabled)
+    sql_query_count = models.PositiveIntegerField(null=True)  # Denormalized for admin filtering
 ```
 
 ## 🔧 Testing
