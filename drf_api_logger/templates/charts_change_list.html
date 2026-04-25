@@ -104,15 +104,12 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       new Chart(sqlCtx, {
-        type: 'line',
+        type: 'bar',
         data: {
           datasets: [{
             label: 'Avg SQL queries per request',
             data: sqlChartData,
-            backgroundColor: 'rgba(255, 152, 0, 0.2)',
-            borderColor: 'rgb(255, 152, 0)',
-            borderWidth: 2,
-            fill: true,
+            backgroundColor: 'rgb(255, 152, 0)',
           }]
         },
         options: {
