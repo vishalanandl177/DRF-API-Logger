@@ -6,15 +6,3 @@
         <a href="?export=true">Export CSV</a>
     </div>
 {% endblock %}
-
-{% block after_field_sets %}
-    {{ block.super }}
-    {% if adminform.form.instance.profiling_data %}
-    <fieldset class="module aligned">
-        <h2>Profiling Breakdown</h2>
-        <div style="padding: 10px;">
-            {{ adminform.form.instance.profiling_breakdown }}
-        </div>
-    </fieldset>
-    {% endif %}
-{% endblock %}

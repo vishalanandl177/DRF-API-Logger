@@ -4,7 +4,7 @@ from django.conf import settings
 from django.contrib import admin
 from django.db.models import Count, Avg
 from django.http import HttpResponse
-from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from drf_api_logger.utils import database_log_enabled
 
 
@@ -177,6 +177,7 @@ if database_log_enabled():
                         'headers', 'body', 'method', 'response', 'status_code',
                         'added_on_time', 'profiling_breakdown',
                     )
+                    self.exclude = ('added_on', 'profiling_data', 'sql_query_count')
 
         def added_on_time(self, obj):
             """
@@ -195,65 +196,117 @@ if database_log_enabled():
             except (json.JSONDecodeError, TypeError):
                 return '-'
 
-            total = data.get('view_and_serialization', 0)
+            view_time = data.get('view_and_serialization', 0)
             sql = data.get('sql', {})
             sql_time = sql.get('total_time', 0)
             query_count = sql.get('query_count', 0)
             mw_before = data.get('middleware_before_view', 0)
             mw_after = data.get('middleware_after_view', 0)
-            non_sql = max(total - sql_time, 0)
+            non_sql = max(view_time - sql_time, 0)
+            exec_total = mw_before + view_time + mw_after
 
-            def pct(val, denom):
-                return '{:.1f}%'.format((val / denom) * 100) if denom > 0 else '-'
+            def pct_val(val):
+                return (val / exec_total) * 100 if exec_total > 0 else 0
 
-            exec_total = mw_before + total + mw_after
+            def bar_color(pct):
+                if pct > 70:
+                    return '#dc3545'
+                if pct > 30:
+                    return '#ffc107'
+                return '#28a745'
 
-            rows = [
-                ('Middleware (before view)', '{:.5f}s'.format(mw_before), pct(mw_before, exec_total)),
-                ('View + Serialization', '{:.5f}s'.format(total), pct(total, exec_total)),
-                ('Middleware (after view)', '{:.5f}s'.format(mw_after), pct(mw_after, exec_total)),
-            ]
-
-            sql_rows = []
-            if sql:
-                sql_rows = [
-                    ('SQL Total Time', '{:.5f}s'.format(sql_time), pct(sql_time, exec_total)),
-                    ('SQL Query Count', str(query_count), ''),
-                    ('Non-SQL (business logic)', '{:.5f}s'.format(non_sql), pct(non_sql, exec_total)),
-                ]
-                if query_count > 0:
-                    avg_per_query = sql_time / query_count
-                    sql_rows.append(('Avg per Query', '{:.5f}s'.format(avg_per_query), ''))
+            def render_bar(pct):
+                color = bar_color(pct)
+                w = max(pct, 1)
+                return (
+                    '<div style="background:#e9ecef;border-radius:4px;height:18px;width:120px;display:inline-block;vertical-align:middle;">'
+                    '<div style="background:{};border-radius:4px;height:18px;width:{}%;min-width:2px;"></div>'
+                    '</div>'
+                ).format(color, w)
 
             diagnosis = _get_profiling_diagnosis(data)
 
-            html = '<table style="border-collapse:collapse;min-width:400px;">'
-            html += '<tr style="background:#f0f0f0;"><th style="padding:6px 12px;text-align:left;">Stage</th>'
-            html += '<th style="padding:6px 12px;text-align:right;">Time</th>'
-            html += '<th style="padding:6px 12px;text-align:right;">% of Total</th></tr>'
+            css = (
+                '<style>'
+                '.prof-wrap{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;max-width:680px;}'
+                '.prof-card{border:1px solid #dee2e6;border-radius:8px;overflow:hidden;margin-bottom:16px;}'
+                '.prof-header{padding:10px 16px;font-weight:600;font-size:14px;border-bottom:1px solid #dee2e6;}'
+                '.prof-header-timing{background:#e8f4fd;color:#0c5a97;}'
+                '.prof-header-sql{background:#fff8e1;color:#856404;}'
+                '.prof-table{width:100%;border-collapse:collapse;}'
+                '.prof-table td{padding:8px 16px;border-bottom:1px solid #f0f0f0;font-size:13px;}'
+                '.prof-table tr:last-child td{border-bottom:none;}'
+                '.prof-label{color:#495057;}'
+                '.prof-val{font-family:SFMono-Regular,Menlo,Monaco,Consolas,monospace;text-align:right;white-space:nowrap;color:#212529;font-weight:500;}'
+                '.prof-pct{text-align:right;color:#6c757d;font-size:12px;white-space:nowrap;}'
+                '.prof-bar{text-align:left;width:140px;}'
+                '.prof-total td{font-weight:700;background:#f8f9fa;font-size:14px;border-top:2px solid #dee2e6;}'
+                '.prof-diag{padding:12px 16px;border-radius:8px;margin-top:8px;font-size:13px;}'
+                '.prof-diag-warn{background:#fff3cd;border:1px solid #ffc107;color:#856404;}'
+                '.prof-diag-ok{background:#d4edda;border:1px solid #28a745;color:#155724;}'
+                '.prof-summary{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;}'
+                '.prof-stat{border:1px solid #dee2e6;border-radius:8px;padding:12px 20px;text-align:center;min-width:100px;}'
+                '.prof-stat-val{font-size:22px;font-weight:700;font-family:monospace;}'
+                '.prof-stat-label{font-size:11px;color:#6c757d;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;}'
+                '</style>'
+            )
 
-            for label, val, p in rows:
-                html += '<tr><td style="padding:4px 12px;">{}</td>'.format(label)
-                html += '<td style="padding:4px 12px;text-align:right;font-family:monospace;">{}</td>'.format(val)
-                html += '<td style="padding:4px 12px;text-align:right;">{}</td></tr>'.format(p)
+            exec_ms = exec_total * 1000
+            stat_color = '#28a745' if exec_ms < 200 else ('#ffc107' if exec_ms < 1000 else '#dc3545')
+            qcount_color = '#28a745' if query_count < 5 else ('#ffc107' if query_count < 10 else '#dc3545')
 
-            html += '<tr><td colspan="3" style="padding:4px 12px;"><strong>Total: {:.5f}s</strong></td></tr>'.format(exec_total)
+            html = css
+            html += '<div class="prof-wrap">'
 
-            if sql_rows:
-                html += '<tr><td colspan="3" style="padding:8px 12px 4px;border-top:1px solid #ccc;">'
-                html += '<strong>SQL Breakdown</strong></td></tr>'
-                for label, val, p in sql_rows:
-                    html += '<tr><td style="padding:4px 12px;">{}</td>'.format(label)
-                    html += '<td style="padding:4px 12px;text-align:right;font-family:monospace;">{}</td>'.format(val)
-                    html += '<td style="padding:4px 12px;text-align:right;">{}</td></tr>'.format(p)
+            html += '<div class="prof-summary">'
+            html += '<div class="prof-stat"><div class="prof-stat-val" style="color:{};">{:.1f}ms</div><div class="prof-stat-label">Total Time</div></div>'.format(stat_color, exec_ms)
+            if sql:
+                html += '<div class="prof-stat"><div class="prof-stat-val" style="color:{};">{}</div><div class="prof-stat-label">SQL Queries</div></div>'.format(qcount_color, query_count)
+                sql_ms = sql_time * 1000
+                html += '<div class="prof-stat"><div class="prof-stat-val">{:.1f}ms</div><div class="prof-stat-label">SQL Time</div></div>'.format(sql_ms)
+                non_sql_ms = non_sql * 1000
+                html += '<div class="prof-stat"><div class="prof-stat-val">{:.1f}ms</div><div class="prof-stat-label">App Logic</div></div>'.format(non_sql_ms)
+            html += '</div>'
+
+            timing_rows = [
+                ('Middleware (before view)', mw_before),
+                ('View + Serialization', view_time),
+                ('Middleware (after view)', mw_after),
+            ]
+            html += '<div class="prof-card">'
+            html += '<div class="prof-header prof-header-timing">Timing Breakdown</div>'
+            html += '<table class="prof-table">'
+            for label, val in timing_rows:
+                p = pct_val(val)
+                html += '<tr>'
+                html += '<td class="prof-label">{}</td>'.format(label)
+                html += '<td class="prof-val">{:.3f}ms</td>'.format(val * 1000)
+                html += '<td class="prof-pct">{:.1f}%</td>'.format(p)
+                html += '<td class="prof-bar">{}</td>'.format(render_bar(p))
+                html += '</tr>'
+            html += '<tr class="prof-total"><td>Total</td><td class="prof-val">{:.3f}ms</td><td></td><td></td></tr>'.format(exec_ms)
+            html += '</table></div>'
+
+            if sql:
+                sql_pct = pct_val(sql_time)
+                non_sql_pct = pct_val(non_sql)
+                html += '<div class="prof-card">'
+                html += '<div class="prof-header prof-header-sql">SQL Breakdown</div>'
+                html += '<table class="prof-table">'
+                html += '<tr><td class="prof-label">SQL Time</td><td class="prof-val">{:.3f}ms</td><td class="prof-pct">{:.1f}%</td><td class="prof-bar">{}</td></tr>'.format(sql_time * 1000, sql_pct, render_bar(sql_pct))
+                html += '<tr><td class="prof-label">App Logic (non-SQL)</td><td class="prof-val">{:.3f}ms</td><td class="prof-pct">{:.1f}%</td><td class="prof-bar">{}</td></tr>'.format(non_sql * 1000, non_sql_pct, render_bar(non_sql_pct))
+                html += '<tr><td class="prof-label">Query Count</td><td class="prof-val">{}</td><td></td><td></td></tr>'.format(query_count)
+                if query_count > 0:
+                    html += '<tr><td class="prof-label">Avg per Query</td><td class="prof-val">{:.3f}ms</td><td></td><td></td></tr>'.format((sql_time / query_count) * 1000)
+                html += '</table></div>'
 
             if diagnosis:
-                html += '<tr><td colspan="3" style="padding:8px 12px;border-top:1px solid #ccc;'
-                html += 'background:#fff3cd;color:#856404;">'
-                html += '<strong>Diagnosis:</strong> {}</td></tr>'.format(diagnosis)
+                html += '<div class="prof-diag prof-diag-warn"><strong>Diagnosis:</strong> {}</div>'.format(diagnosis)
+            else:
+                html += '<div class="prof-diag prof-diag-ok"><strong>Status:</strong> No performance issues detected.</div>'
 
-            html += '</table>'
-            return format_html(html)
+            html += '</div>'
+            return mark_safe(html)
 
         profiling_breakdown.short_description = 'Profiling Breakdown'
 

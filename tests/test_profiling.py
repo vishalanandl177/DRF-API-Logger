@@ -455,9 +455,13 @@ class TestProfilingAdminDisplay(TestCase):
             profiling_data=profiling, sql_query_count=47,
         )
         html = self.admin.profiling_breakdown(log)
-        self.assertIn('View + Serialization', str(html))
-        self.assertIn('SQL Total Time', str(html))
-        self.assertIn('N+1', str(html))
+        html_str = str(html)
+        self.assertIn('View + Serialization', html_str)
+        self.assertIn('SQL Time', html_str)
+        self.assertIn('Query Count', html_str)
+        self.assertIn('N+1', html_str)
+        self.assertIn('Timing Breakdown', html_str)
+        self.assertIn('SQL Breakdown', html_str)
 
     def test_profiling_breakdown_without_data(self):
         log = self.APILogsModel.objects.create(
