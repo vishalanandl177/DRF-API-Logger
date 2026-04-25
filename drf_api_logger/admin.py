@@ -219,7 +219,7 @@ if database_log_enabled():
                 color = bar_color(pct)
                 w = max(pct, 1)
                 return (
-                    '<div style="background:#e9ecef;border-radius:4px;height:18px;width:120px;display:inline-block;vertical-align:middle;">'
+                    '<div class="prof-bar-bg">'
                     '<div style="background:{};border-radius:4px;height:18px;width:{}%;min-width:2px;"></div>'
                     '</div>'
                 ).format(color, w)
@@ -229,25 +229,26 @@ if database_log_enabled():
             css = (
                 '<style>'
                 '.prof-wrap{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;max-width:680px;}'
-                '.prof-card{border:1px solid #dee2e6;border-radius:8px;overflow:hidden;margin-bottom:16px;}'
-                '.prof-header{padding:10px 16px;font-weight:600;font-size:14px;border-bottom:1px solid #dee2e6;}'
-                '.prof-header-timing{background:#e8f4fd;color:#0c5a97;}'
-                '.prof-header-sql{background:#fff8e1;color:#856404;}'
+                '.prof-card{border:1px solid var(--hairline-color,#dee2e6);border-radius:8px;overflow:hidden;margin-bottom:16px;}'
+                '.prof-header{padding:10px 16px;font-weight:600;font-size:14px;border-bottom:1px solid var(--hairline-color,#dee2e6);}'
+                '.prof-header-timing{background:var(--darkened-bg,#e8f4fd);color:var(--header-link-color,#0c5a97);}'
+                '.prof-header-sql{background:var(--darkened-bg,#fff8e1);color:var(--header-link-color,#856404);}'
                 '.prof-table{width:100%;border-collapse:collapse;}'
-                '.prof-table td{padding:8px 16px;border-bottom:1px solid #f0f0f0;font-size:13px;}'
+                '.prof-table td{padding:8px 16px;border-bottom:1px solid var(--hairline-color,#f0f0f0);font-size:13px;}'
                 '.prof-table tr:last-child td{border-bottom:none;}'
-                '.prof-label{color:#495057;}'
-                '.prof-val{font-family:SFMono-Regular,Menlo,Monaco,Consolas,monospace;text-align:right;white-space:nowrap;color:#212529;font-weight:500;}'
-                '.prof-pct{text-align:right;color:#6c757d;font-size:12px;white-space:nowrap;}'
+                '.prof-label{color:var(--body-quiet-color,#495057);}'
+                '.prof-val{font-family:SFMono-Regular,Menlo,Monaco,Consolas,monospace;text-align:right;white-space:nowrap;color:var(--body-fg,#212529);font-weight:500;}'
+                '.prof-pct{text-align:right;color:var(--body-quiet-color,#6c757d);font-size:12px;white-space:nowrap;}'
                 '.prof-bar{text-align:left;width:140px;}'
-                '.prof-total td{font-weight:700;background:#f8f9fa;font-size:14px;border-top:2px solid #dee2e6;}'
+                '.prof-bar-bg{background:var(--hairline-color,#e9ecef);border-radius:4px;height:18px;width:120px;display:inline-block;vertical-align:middle;}'
+                '.prof-total td{font-weight:700;background:var(--darkened-bg,#f8f9fa);font-size:14px;border-top:2px solid var(--hairline-color,#dee2e6);color:var(--body-fg,#212529);}'
                 '.prof-diag{padding:12px 16px;border-radius:8px;margin-top:8px;font-size:13px;}'
-                '.prof-diag-warn{background:#fff3cd;border:1px solid #ffc107;color:#856404;}'
-                '.prof-diag-ok{background:#d4edda;border:1px solid #28a745;color:#155724;}'
+                '.prof-diag-warn{background:rgba(255,193,7,0.15);border:1px solid #ffc107;color:#ffc107;}'
+                '.prof-diag-ok{background:rgba(40,167,69,0.15);border:1px solid #28a745;color:#28a745;}'
                 '.prof-summary{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;}'
-                '.prof-stat{border:1px solid #dee2e6;border-radius:8px;padding:12px 20px;text-align:center;min-width:100px;}'
+                '.prof-stat{border:1px solid var(--hairline-color,#dee2e6);border-radius:8px;padding:12px 20px;text-align:center;min-width:100px;background:var(--darkened-bg,#f8f9fa);}'
                 '.prof-stat-val{font-size:22px;font-weight:700;font-family:monospace;}'
-                '.prof-stat-label{font-size:11px;color:#6c757d;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;}'
+                '.prof-stat-label{font-size:11px;color:var(--body-quiet-color,#6c757d);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;}'
                 '</style>'
             )
 
