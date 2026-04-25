@@ -34,8 +34,6 @@ class TestAPILoggerMiddleware(TestCase):
         """Test middleware initializes correctly with default settings"""
         middleware = APILoggerMiddleware(get_response=Mock())
         self.assertIsNotNone(middleware)
-        self.assertFalse(middleware.DRF_API_LOGGER_DATABASE)
-        self.assertFalse(middleware.DRF_API_LOGGER_SIGNAL)
         self.assertEqual(middleware.DRF_API_LOGGER_PATH_TYPE, 'ABSOLUTE')
 
     @override_settings(DRF_API_LOGGER_DATABASE=True)

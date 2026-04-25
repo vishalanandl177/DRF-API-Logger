@@ -93,6 +93,13 @@ def database_log_enabled():
     return drf_api_logger_database
 
 
+def profiling_enabled():
+    drf_api_logger_profiling = False
+    if hasattr(settings, 'DRF_API_LOGGER_ENABLE_PROFILING'):
+        drf_api_logger_profiling = settings.DRF_API_LOGGER_ENABLE_PROFILING
+    return drf_api_logger_profiling
+
+
 def mask_sensitive_data(data, mask_api_parameters=False):
     """
     Masks or removes sensitive data such as passwords or tokens from dictionaries or URL strings.

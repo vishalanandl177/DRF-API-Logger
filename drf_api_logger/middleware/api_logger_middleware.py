@@ -80,18 +80,26 @@ class APILoggerMiddleware:
             if type(settings.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE) is int:
                 self.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = settings.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE
 
+        self.DRF_API_LOGGER_ENABLE_PROFILING = False
+        if hasattr(settings, 'DRF_API_LOGGER_ENABLE_PROFILING'):
+            self.DRF_API_LOGGER_ENABLE_PROFILING = settings.DRF_API_LOGGER_ENABLE_PROFILING
+
+        self.DRF_API_LOGGER_PROFILING_SQL_TRACKING = True
+        if hasattr(settings, 'DRF_API_LOGGER_PROFILING_SQL_TRACKING'):
+            self.DRF_API_LOGGER_PROFILING_SQL_TRACKING = settings.DRF_API_LOGGER_PROFILING_SQL_TRACKING
+
     def is_static_or_media_request(self, path):
         static_url = getattr(settings, 'STATIC_URL', None)
         media_url = getattr(settings, 'MEDIA_URL', None)
-        
+
         # Check static URL
         if static_url and static_url != '/' and path.startswith(static_url):
             return True
-        
+
         # Check media URL
         if media_url and media_url != '/' and path.startswith(media_url):
             return True
-        
+
         return False
 
     def __call__(self, request):
@@ -117,10 +125,8 @@ class APILoggerMiddleware:
             if namespace in self.DRF_API_LOGGER_SKIP_NAMESPACE:
                 return self.get_response(request)
 
-            # Code to be executed for each request/response after
-            # the view is called.
-
             start_time = time.time()
+            middleware_before_start = time.time()
 
             headers = get_headers(request=request)
             method = request.method
@@ -130,9 +136,6 @@ class APILoggerMiddleware:
                 request_data = json.loads(request.body) if request.body else ''
                 if self.DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE > -1:
                     if sys.getsizeof(request_data) > self.DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE:
-                        """
-                        Ignore the request body if larger then specified.
-                        """
                         request_data = ''
             except Exception:
                 pass
@@ -142,18 +145,41 @@ class APILoggerMiddleware:
                 if self.DRF_API_LOGGER_TRACING_ID_HEADER_NAME:
                     tracing_id = headers.get(self.DRF_API_LOGGER_TRACING_ID_HEADER_NAME)
                 if not tracing_id:
-                    """
-                    If tracing is is not present in header, get it from function or uuid.
-                    """
                     if self.tracing_func_name:
                         tracing_id = self.tracing_func_name()
                     else:
                         tracing_id = str(uuid.uuid4())
                 request.tracing_id = tracing_id
 
-            # Code to be executed for each request before
-            # the view (and later middleware) are called.
+            middleware_before_end = time.time()
+
+            # Set up SQL tracking before calling the view
+            sql_profiling_active = (
+                self.DRF_API_LOGGER_ENABLE_PROFILING
+                and self.DRF_API_LOGGER_PROFILING_SQL_TRACKING
+            )
+            if sql_profiling_active:
+                from django.db import connection, reset_queries
+                original_force_debug_cursor = connection.force_debug_cursor
+                connection.force_debug_cursor = True
+                reset_queries()
+
+            view_start = time.time()
             response = self.get_response(request)
+            view_end = time.time()
+
+            # Capture SQL data immediately after the view returns
+            sql_data = None
+            if sql_profiling_active:
+                queries = connection.queries[:]
+                sql_total_time = sum(float(q.get('time', 0)) for q in queries)
+                sql_query_count = len(queries)
+                sql_data = {
+                    'total_time': round(sql_total_time, 5),
+                    'query_count': sql_query_count,
+                }
+                connection.force_debug_cursor = original_force_debug_cursor
+                reset_queries()
 
             # Only log required status codes if matching
             if self.DRF_API_LOGGER_STATUS_CODES and response.status_code not in self.DRF_API_LOGGER_STATUS_CODES:
@@ -206,12 +232,12 @@ class APILoggerMiddleware:
 
                 # Get the current time in a timezone-aware manner
                 if settings.USE_TZ:
-                    # When USE_TZ is True, use timezone-aware datetime
                     current_time = timezone.now()
                 else:
-                    # When USE_TZ is False, use naive datetime
                     current_time = datetime.now()
-                
+
+                middleware_after_start = time.time()
+
                 data = dict(
                     api=mask_sensitive_data(api, mask_api_parameters=True),
                     headers=mask_sensitive_data(headers),
@@ -223,12 +249,30 @@ class APILoggerMiddleware:
                     execution_time=time.time() - start_time,
                     added_on=current_time
                 )
+
+                middleware_after_end = time.time()
+
+                # Build profiling data if enabled
+                profiling = None
+                if self.DRF_API_LOGGER_ENABLE_PROFILING:
+                    profiling = {
+                        'middleware_before_view': round(middleware_before_end - middleware_before_start, 5),
+                        'view_and_serialization': round(view_end - view_start, 5),
+                        'middleware_after_view': round(middleware_after_end - middleware_after_start, 5),
+                    }
+                    if sql_data:
+                        profiling['sql'] = sql_data
+                    data['profiling_data'] = profiling
+                    data['sql_query_count'] = sql_data['query_count'] if sql_data else None
+
                 if self.DRF_API_LOGGER_DATABASE and LOGGER_THREAD:
                     d = data.copy()
                     d['headers'] = json.dumps(d['headers'], indent=4, ensure_ascii=False) if d.get('headers') else ''
                     if request_data:
                         d['body'] = json.dumps(d['body'], indent=4, ensure_ascii=False) if d.get('body') else ''
                     d['response'] = json.dumps(d['response'], indent=4, ensure_ascii=False) if d.get('response') else ''
+                    if d.get('profiling_data'):
+                        d['profiling_data'] = json.dumps(d['profiling_data'], indent=4, ensure_ascii=False)
                     LOGGER_THREAD.put_log_data(data=d)
                 if self.DRF_API_LOGGER_SIGNAL:
                     if tracing_id:

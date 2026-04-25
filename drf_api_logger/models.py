@@ -77,6 +77,16 @@ if database_log_enabled():
             max_digits=8,
             help_text='Server execution time (Not complete response time.)'
         )
+        profiling_data = models.TextField(
+            null=True,
+            blank=True,
+            default=None,
+        )
+        sql_query_count = models.PositiveIntegerField(
+            null=True,
+            blank=True,
+            default=None,
+        )
 
         def __str__(self):
             """
