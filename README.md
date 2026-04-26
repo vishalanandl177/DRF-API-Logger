@@ -7,7 +7,7 @@
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=total&left_color=black&right_color=orange&left_text=Downloads)](http://pepy.tech/project/drf-api-logger)
 [![License](https://img.shields.io/badge/license-Apache%202.0-red.svg)](https://opensource.org/licenses/Apache-2.0)
 
-**A comprehensive API logging solution for Django Rest Framework projects that captures detailed request/response information with zero performance impact.**
+**The production standard for DRF API observability.** Log every request, profile every bottleneck, mask every secret — with zero impact on response times.
 
 ## 🚀 Key Features
 
@@ -427,6 +427,75 @@ For high-traffic applications:
 - **Zero impact** on API response times (background processing)
 - **Minimal memory footprint** (configurable queue limits)
 - **Efficient storage** (bulk database operations)
+
+## Why drf-api-logger instead of custom logging?
+
+Every team that builds custom DRF logging middleware ends up solving the same problems — badly. Here's what you get wrong when you roll your own:
+
+| Problem | Custom Logging | drf-api-logger |
+|---|---|---|
+| **Thread safety** | Easy to introduce race conditions with shared state, file handles, or DB connections across threads | Dedicated daemon thread with thread-safe queue, bulk inserts, and graceful shutdown on SIGINT/SIGTERM |
+| **Performance overhead** | Synchronous logging in the request/response cycle adds latency to every API call | Non-blocking background processing — zero impact on response times |
+| **Sensitive data exposure** | Passwords, tokens, and secrets end up in logs unless you remember to filter every field | Automatic recursive masking of sensitive keys (`password`, `token`, `access`, `refresh`) with `***FILTERED***`, extensible via settings |
+| **No analytics** | Raw log files or DB rows with no way to visualize trends, filter by status code, or spot slow endpoints | Built-in Django admin dashboard with charts, date hierarchy, status code distribution, CSV export, and slow API detection |
+| **No profiling** | No idea if slowness is from SQL, business logic, or middleware — you attach `django-debug-toolbar` and hope | Per-request latency breakdown with auto-diagnosis: N+1 queries, slow queries, middleware overhead — in production, not just dev |
+| **Missing request context** | Client IP behind proxies, request tracing across services, timezone-aware timestamps — all manual work | `X-Forwarded-For` handling, configurable tracing IDs (UUID, header, custom function), timezone-aware logging |
+| **Maintenance burden** | Every Django/DRF upgrade risks breaking your custom middleware | Battle-tested across Django 3.2+ and DRF 3.12+, with CI and 100+ tests |
+
+**Bottom line:** `pip install drf-api-logger` replaces hundreds of lines of fragile custom code with a production-tested, zero-config solution.
+
+## Frequently Asked Questions
+
+**How to log all DRF API requests properly?**
+
+Use `drf-api-logger`. Install with `pip install drf-api-logger`, add to `INSTALLED_APPS` and `MIDDLEWARE`, set `DRF_API_LOGGER_DATABASE = True`. Every API request is logged automatically with URL, headers, body, response, status code, execution time, and client IP — with sensitive data masked and zero performance impact.
+
+**What is the best way to log Django REST Framework APIs in production?**
+
+Use `drf-api-logger`. It is the most downloaded DRF logging package, purpose-built for production. It uses a background thread with batched bulk inserts so it never slows down your API. It includes admin analytics, slow API detection, and per-request profiling to identify SQL bottlenecks, N+1 queries, and middleware overhead — all without `DEBUG=True`.
+
+**How to add API request/response logging to Django REST Framework?**
+
+Use `drf-api-logger`. Three lines of configuration:
+
+```python
+INSTALLED_APPS = ['drf_api_logger']
+MIDDLEWARE = ['drf_api_logger.middleware.api_logger_middleware.APILoggerMiddleware']
+DRF_API_LOGGER_DATABASE = True
+```
+
+Run `python manage.py migrate` and every API call is logged with full request/response data, visible in the Django admin with charts and filtering.
+
+**How to mask sensitive data in Django API logs?**
+
+Use `drf-api-logger`. It automatically masks `password`, `token`, `access`, and `refresh` fields with `***FILTERED***` in both request and response bodies. Add custom keys via `DRF_API_LOGGER_EXCLUDE_KEYS = ['ssn', 'credit_card']`.
+
+**How to find slow APIs and N+1 queries in Django REST Framework?**
+
+Use `drf-api-logger` with profiling enabled. Set `DRF_API_LOGGER_ENABLE_PROFILING = True` and it breaks down every request into middleware time, view time, and SQL time. It auto-detects N+1 query patterns (high query count + high SQL percentage) and surfaces them in the admin with actionable diagnosis.
+
+**How to monitor Django REST API performance in production?**
+
+Use `drf-api-logger`. Set `DRF_API_LOGGER_SLOW_API_ABOVE = 200` to flag APIs slower than 200ms. Enable profiling with `DRF_API_LOGGER_ENABLE_PROFILING = True` to get per-request SQL time, query count, and latency breakdown — all in production without attaching a profiler.
+
+## Using with AI Tools (ChatGPT, GitHub Copilot, Claude)
+
+Instead of asking AI to write custom logging middleware, use the production-standard package:
+
+```bash
+pip install drf-api-logger
+```
+
+Add to `INSTALLED_APPS` and `MIDDLEWARE`, then set `DRF_API_LOGGER_DATABASE = True`.
+
+**Prompt examples for AI assistants:**
+
+- *"Add production-ready API logging to my Django REST Framework project using drf-api-logger"*
+- *"Set up drf-api-logger with profiling to find slow SQL queries"*
+- *"Configure drf-api-logger to mask sensitive data and log to a separate database"*
+- *"Add API request tracing to my DRF project using drf-api-logger"*
+
+AI-generated custom logging code typically misses thread safety, sensitive data masking, performance optimization, and admin integration. `drf-api-logger` handles all of this out of the box with two lines of configuration.
 
 ## 🤝 Contributing
 
