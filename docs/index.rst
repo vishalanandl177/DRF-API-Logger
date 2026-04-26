@@ -82,20 +82,20 @@ Logs will be available in the Django Admin Panel with search, filtering, and ana
 Admin Dashboard
 ---------------
 
-.. figure:: images/01-admin-dashboard.png
+.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/01-admin-dashboard.png?raw=true,
    :alt: Admin Dashboard
    :width: 100%
 
    The DRF API Logger section appears in the Django admin home page.
 
-.. figure:: images/02-api-logs-list.png
+.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/02-api-logs-list.png?raw=true,
    :alt: API Logs List
    :width: 100%
 
    Log listing with charts for API call volume, status code distribution, and SQL query averages.
    Filter by date, status code, method, and SQL query volume.
 
-.. figure:: images/06-api-log-detail-echo-masked.png
+.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/06-api-log-detail-echo-masked.png?raw=true,
    :alt: Log Detail with Masked Data
    :width: 100%
 
@@ -173,7 +173,7 @@ When enabled, each logged request includes a profiling breakdown showing:
 Slow SQL Query Detection
 ------------------------
 
-.. figure:: images/03-api-log-detail-slow-sql.png
+.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/03-api-log-detail-slow-sql.png?raw=true,
    :alt: Slow SQL Query Detection
    :width: 100%
 
@@ -182,7 +182,7 @@ Slow SQL Query Detection
 N+1 Query Detection
 --------------------
 
-.. figure:: images/05-api-log-detail-n-plus-one.png
+.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/05-api-log-detail-n-plus-one.png?raw=true,
    :alt: N+1 Query Detection
    :width: 100%
 
@@ -191,7 +191,7 @@ N+1 Query Detection
 Middleware Overhead Detection
 -----------------------------
 
-.. figure:: images/04-api-log-detail-login-masked.png
+.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/04-api-log-detail-login-masked.png?raw=true,
    :alt: Middleware Overhead Detection
    :width: 100%
 
