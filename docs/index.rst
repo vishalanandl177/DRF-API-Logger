@@ -10,8 +10,16 @@ DRF API Logger
    :target: https://opensource.org/licenses/Apache-2.0
    :alt: License
 
-A comprehensive API logging solution for Django Rest Framework projects that captures detailed
-request/response information with zero performance impact.
+The production standard for DRF API observability. Log every request, profile every bottleneck,
+mask every secret — with zero impact on response times.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Guides
+
+   performance_tuning
+   scaling
+   security
 
 Key Features
 ------------

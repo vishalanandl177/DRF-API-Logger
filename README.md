@@ -481,19 +481,35 @@ For high-traffic applications:
 
 ## Why drf-api-logger instead of custom logging?
 
-Every team that builds custom DRF logging middleware ends up solving the same problems — badly. Here's what you get wrong when you roll your own:
+Every team that builds custom DRF logging middleware ends up solving the same problems — badly.
 
-| Problem | Custom Logging | drf-api-logger |
+### Decision-Killer Comparison
+
+| Capability | Custom Logging | drf-api-logger |
 |---|---|---|
-| **Thread safety** | Easy to introduce race conditions with shared state, file handles, or DB connections across threads | Dedicated daemon thread with thread-safe queue, bulk inserts, and graceful shutdown on SIGINT/SIGTERM |
-| **Performance overhead** | Synchronous logging in the request/response cycle adds latency to every API call | Non-blocking background processing — zero impact on response times |
-| **Sensitive data exposure** | Passwords, tokens, and secrets end up in logs unless you remember to filter every field | Automatic recursive masking of sensitive keys (`password`, `token`, `access`, `refresh`) with `***FILTERED***`, extensible via settings |
-| **No analytics** | Raw log files or DB rows with no way to visualize trends, filter by status code, or spot slow endpoints | Built-in Django admin dashboard with charts, date hierarchy, status code distribution, CSV export, and slow API detection |
-| **No profiling** | No idea if slowness is from SQL, business logic, or middleware — you attach `django-debug-toolbar` and hope | Per-request latency breakdown with auto-diagnosis: N+1 queries, slow queries, middleware overhead — in production, not just dev |
-| **Missing request context** | Client IP behind proxies, request tracing across services, timezone-aware timestamps — all manual work | `X-Forwarded-For` handling, configurable tracing IDs (UUID, header, custom function), timezone-aware logging |
-| **Maintenance burden** | Every Django/DRF upgrade risks breaking your custom middleware | Battle-tested across Django 3.2+ and DRF 3.12+, with CI and 100+ tests |
+| Request/response capture | Partial (you forget edge cases) | Full (headers, body, response, IP, timing) |
+| Sensitive data masking | Manual per-field filtering | Automatic recursive masking with `***FILTERED***` |
+| Thread-safe async processing | Race conditions with shared state | Dedicated daemon thread with bulk inserts |
+| Performance impact | Synchronous — adds latency to every request | Zero impact — background processing |
+| Admin dashboard with charts | Build your own or nothing | Built-in with status code charts, date filtering, CSV export |
+| Slow API detection | `print()` and hope | Configurable threshold with admin filter |
+| SQL profiling in production | Attach debugger or guess | Per-request query count, SQL time, N+1 detection |
+| Auto-diagnosis of bottlenecks | Not possible | N+1 queries, slow queries, middleware overhead — automatic |
+| Client IP behind proxies | Manual X-Forwarded-For parsing | Built-in |
+| Request tracing | Build your own UUID system | UUID, custom function, or header-based — one setting |
+| OpenTelemetry export | Months of integration work | `DRF_API_LOGGER_ENABLE_OTEL = True` |
+| Data masking in URLs | Almost never implemented | Automatic query parameter masking |
+| Graceful shutdown | Data loss on SIGTERM | Queue flush on SIGINT/SIGTERM |
+| Test coverage | "We'll add tests later" | 130+ tests |
+| Maintenance across Django versions | Breaks on every upgrade | Battle-tested across Django 3.2 — 5.x, DRF 3.12+ |
 
-**Bottom line:** `pip install drf-api-logger` replaces hundreds of lines of fragile custom code with a production-tested, zero-config solution.
+**Custom logging in production is irresponsible.** You're one missed `***FILTERED***` away from leaking passwords to your log aggregator, one thread bug away from data loss, and one slow query away from blaming the wrong service.
+
+```bash
+pip install drf-api-logger
+```
+
+Two lines of config. Done.
 
 ## Frequently Asked Questions
 
