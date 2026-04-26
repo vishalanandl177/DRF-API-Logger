@@ -92,6 +92,10 @@ class APILoggerMiddleware:
         if hasattr(settings, 'DRF_API_LOGGER_ENABLE_OTEL'):
             self.DRF_API_LOGGER_ENABLE_OTEL = settings.DRF_API_LOGGER_ENABLE_OTEL
 
+        self.DRF_API_LOGGER_ENABLE_METRICS = False
+        if hasattr(settings, 'DRF_API_LOGGER_ENABLE_METRICS'):
+            self.DRF_API_LOGGER_ENABLE_METRICS = settings.DRF_API_LOGGER_ENABLE_METRICS
+
     def is_static_or_media_request(self, path):
         static_url = getattr(settings, 'STATIC_URL', None)
         media_url = getattr(settings, 'MEDIA_URL', None)
@@ -332,6 +336,9 @@ class APILoggerMiddleware:
                 if self.DRF_API_LOGGER_ENABLE_OTEL and otel_span:
                     from drf_api_logger.otel import finish_span
                     finish_span(otel_span, otel_span_owned, data, profiling)
+                if self.DRF_API_LOGGER_ENABLE_METRICS:
+                    from drf_api_logger.metrics import record_request
+                    record_request(data)
             else:
                 return response
         else:
