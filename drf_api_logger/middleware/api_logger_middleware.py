@@ -320,6 +320,7 @@ class APILoggerMiddleware:
 
                 if self.DRF_API_LOGGER_DATABASE and LOGGER_THREAD:
                     d = data.copy()
+                    d.pop('error_type', None)
                     d['headers'] = json.dumps(d['headers'], indent=4, ensure_ascii=False) if d.get('headers') else ''
                     if request_data:
                         d['body'] = json.dumps(d['body'], indent=4, ensure_ascii=False) if d.get('body') else ''

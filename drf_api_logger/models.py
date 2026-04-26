@@ -87,13 +87,6 @@ if database_log_enabled():
             blank=True,
             default=None,
         )
-        error_type = models.CharField(
-            max_length=256,
-            null=True,
-            blank=True,
-            default=None,
-            db_index=True,
-        )
 
         def __str__(self):
             """

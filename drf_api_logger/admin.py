@@ -168,17 +168,16 @@ if database_log_enabled():
                 if settings.DRF_API_LOGGER_ENABLE_PROFILING:
                     self._DRF_API_LOGGER_ENABLE_PROFILING = True
                     self.list_display = (
-                        'id', 'api', 'method', 'status_code', 'error_type',
+                        'id', 'api', 'method', 'status_code',
                         'execution_time', 'sql_query_count', 'added_on_time',
                     )
                     self.list_filter += (HighQueryCountFilter,)
                     self.readonly_fields = (
                         'execution_time', 'client_ip_address', 'api',
                         'headers', 'body', 'method', 'response', 'status_code',
-                        'error_type', 'added_on_time', 'profiling_breakdown',
+                        'added_on_time', 'profiling_breakdown',
                     )
                     self.exclude = ('added_on', 'profiling_data', 'sql_query_count')
-                    self.search_fields = ('body', 'response', 'headers', 'api', 'error_type')
 
         def added_on_time(self, obj):
             """
@@ -366,26 +365,26 @@ if database_log_enabled():
                 extra_context['sql_distribution'] = list(sql_distribution)
                 extra_context['profiling_enabled'] = True
 
-            # Error analytics: group by endpoint + error type
+            # Error analytics: group by endpoint + status code
             error_qs = filtered_query_set.filter(status_code__gte=400)
             if error_qs.exists():
                 errors_by_endpoint = list(
-                    error_qs.values('api', 'status_code', 'error_type')
+                    error_qs.values('api', 'status_code')
                     .annotate(
                         count=Count('id'),
                         last_seen=Max('added_on'),
                     )
                     .order_by('-count')[:20]
                 )
-                errors_by_type = list(
-                    error_qs.values('error_type')
+                errors_by_status = list(
+                    error_qs.values('status_code')
                     .annotate(count=Count('id'))
                     .order_by('-count')[:10]
                 )
                 error_count = error_qs.count()
                 total_count = filtered_query_set.count()
                 extra_context['errors_by_endpoint'] = errors_by_endpoint
-                extra_context['errors_by_type'] = errors_by_type
+                extra_context['errors_by_status'] = errors_by_status
                 extra_context['error_count'] = error_count
                 extra_context['error_rate'] = round(
                     (error_count / total_count) * 100, 1

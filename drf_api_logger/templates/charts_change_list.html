@@ -171,7 +171,6 @@ document.addEventListener('DOMContentLoaded', () => {
           <tr style="background:var(--darkened-bg,#f8f9fa);">
             <th style="padding:6px 12px;text-align:left;font-size:12px;color:var(--body-quiet-color,#6c757d);">Endpoint</th>
             <th style="padding:6px 12px;text-align:center;font-size:12px;color:var(--body-quiet-color,#6c757d);">Status</th>
-            <th style="padding:6px 12px;text-align:left;font-size:12px;color:var(--body-quiet-color,#6c757d);">Error Type</th>
             <th style="padding:6px 12px;text-align:right;font-size:12px;color:var(--body-quiet-color,#6c757d);">Count</th>
           </tr>
           {% for err in errors_by_endpoint %}
@@ -180,19 +179,20 @@ document.addEventListener('DOMContentLoaded', () => {
             <td style="padding:6px 12px;text-align:center;">
               <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;{% if err.status_code >= 500 %}background:rgba(220,53,69,0.15);color:#dc3545;{% else %}background:rgba(255,193,7,0.15);color:#ffc107;{% endif %}">{{ err.status_code }}</span>
             </td>
-            <td style="padding:6px 12px;font-size:12px;font-family:monospace;color:var(--body-fg,#212529);">{{ err.error_type|default:"-" }}</td>
             <td style="padding:6px 12px;text-align:right;font-weight:700;font-size:14px;color:var(--body-fg,#212529);">{{ err.count }}</td>
           </tr>
           {% endfor %}
         </table>
       </div>
       <div style="flex:1;min-width:250px;border-left:1px solid var(--hairline-color,#dee2e6);">
-        <div style="padding:10px 16px;font-weight:600;font-size:13px;color:var(--body-quiet-color,#6c757d);border-bottom:1px solid var(--hairline-color,#f0f0f0);">Errors by Type</div>
+        <div style="padding:10px 16px;font-weight:600;font-size:13px;color:var(--body-quiet-color,#6c757d);border-bottom:1px solid var(--hairline-color,#f0f0f0);">Errors by Status Code</div>
         <table style="width:100%;border-collapse:collapse;">
-          {% for et in errors_by_type %}
+          {% for es in errors_by_status %}
           <tr style="border-bottom:1px solid var(--hairline-color,#f0f0f0);">
-            <td style="padding:6px 12px;font-size:12px;font-family:monospace;color:var(--body-fg,#212529);">{{ et.error_type|default:"Unknown" }}</td>
-            <td style="padding:6px 12px;text-align:right;font-weight:700;font-size:14px;color:var(--body-fg,#212529);">{{ et.count }}</td>
+            <td style="padding:6px 12px;">
+              <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;{% if es.status_code >= 500 %}background:rgba(220,53,69,0.15);color:#dc3545;{% else %}background:rgba(255,193,7,0.15);color:#ffc107;{% endif %}">{{ es.status_code }}</span>
+            </td>
+            <td style="padding:6px 12px;text-align:right;font-weight:700;font-size:14px;color:var(--body-fg,#212529);">{{ es.count }}</td>
           </tr>
           {% endfor %}
         </table>

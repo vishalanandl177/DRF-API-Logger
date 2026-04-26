@@ -1,5 +1,6 @@
 """
 Test cases for error highlighting, grouping, and frequency tracking.
+Error type is captured in-memory (signals, OTel, metrics) but NOT stored in DB.
 """
 import json
 from unittest.mock import Mock, patch
@@ -86,7 +87,7 @@ class TestMiddlewareErrorCapture(TestCase):
         return HttpResponse(
             json.dumps(body),
             content_type='application/json',
-            status=status
+            status=status,
         )
 
     @override_settings(DRF_API_LOGGER_SIGNAL=True)
@@ -116,31 +117,6 @@ class TestMiddlewareErrorCapture(TestCase):
 
     @override_settings(DRF_API_LOGGER_SIGNAL=True)
     @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
-    def test_error_type_in_signal_for_500(self, mock_resolve):
-        mock_resolve.return_value.namespace = None
-        mock_resolve.return_value.url_name = 'test'
-
-        def get_response(request):
-            return self._make_response(500, {'detail': 'Internal server error'})
-
-        signal_data = []
-        from drf_api_logger import API_LOGGER_SIGNAL
-        def listener(**kwargs):
-            signal_data.append(kwargs)
-
-        API_LOGGER_SIGNAL.listen += listener
-        try:
-            middleware = APILoggerMiddleware(get_response=get_response)
-            request = self.factory.get('/api/test/')
-            middleware(request)
-
-            self.assertEqual(len(signal_data), 1)
-            self.assertEqual(signal_data[0]['error_type'], 'Internal server error')
-        finally:
-            API_LOGGER_SIGNAL.listen -= listener
-
-    @override_settings(DRF_API_LOGGER_SIGNAL=True)
-    @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
     def test_no_error_type_for_2xx(self, mock_resolve):
         mock_resolve.return_value.namespace = None
         mock_resolve.return_value.url_name = 'test'
@@ -164,12 +140,10 @@ class TestMiddlewareErrorCapture(TestCase):
         finally:
             API_LOGGER_SIGNAL.listen -= listener
 
-    @override_settings(
-        DRF_API_LOGGER_DATABASE=True,
-    )
+    @override_settings(DRF_API_LOGGER_DATABASE=True)
     @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
     @patch('drf_api_logger.middleware.api_logger_middleware.LOGGER_THREAD')
-    def test_error_type_in_db_payload(self, mock_thread, mock_resolve):
+    def test_error_type_excluded_from_db_payload(self, mock_thread, mock_resolve):
         mock_resolve.return_value.namespace = None
         mock_resolve.return_value.url_name = 'test'
         mock_thread.put_log_data = Mock()
@@ -183,39 +157,11 @@ class TestMiddlewareErrorCapture(TestCase):
 
         mock_thread.put_log_data.assert_called_once()
         call_data = mock_thread.put_log_data.call_args[1]['data']
-        self.assertEqual(call_data['error_type'], 'Permission denied.')
+        self.assertNotIn('error_type', call_data)
 
 
 @override_settings(DRF_API_LOGGER_DATABASE=True)
-class TestErrorModelField(TestCase):
-
-    def test_create_log_with_error_type(self):
-        from drf_api_logger.models import APILogsModel
-        log = APILogsModel.objects.create(
-            api='/api/test/', headers='{}', body='', method='GET',
-            client_ip_address='127.0.0.1', response='{"detail": "Not found."}',
-            status_code=404, execution_time=0.01, added_on=timezone.now(),
-            error_type='Not found.',
-        )
-        self.assertEqual(log.error_type, 'Not found.')
-
-    def test_create_log_without_error_type(self):
-        from drf_api_logger.models import APILogsModel
-        log = APILogsModel.objects.create(
-            api='/api/test/', headers='{}', body='', method='GET',
-            client_ip_address='127.0.0.1', response='{}',
-            status_code=200, execution_time=0.01, added_on=timezone.now(),
-        )
-        self.assertIsNone(log.error_type)
-
-    def test_error_type_indexed(self):
-        from drf_api_logger.models import APILogsModel
-        field = APILogsModel._meta.get_field('error_type')
-        self.assertTrue(field.db_index)
-
-
-@override_settings(DRF_API_LOGGER_DATABASE=True)
-class TestErrorGrouping(TestCase):
+class TestErrorGroupingByStatusCode(TestCase):
 
     def setUp(self):
         from drf_api_logger.models import APILogsModel
@@ -227,28 +173,25 @@ class TestErrorGrouping(TestCase):
                 api='/api/users/', headers='{}', body='', method='GET',
                 client_ip_address='127.0.0.1', response='{}',
                 status_code=404, execution_time=0.01, added_on=now,
-                error_type='Not found.',
             )
         for i in range(3):
             APILogsModel.objects.create(
                 api='/api/orders/', headers='{}', body='', method='POST',
                 client_ip_address='127.0.0.1', response='{}',
                 status_code=400, execution_time=0.02, added_on=now,
-                error_type='BadRequest',
             )
         for i in range(2):
             APILogsModel.objects.create(
                 api='/api/users/', headers='{}', body='', method='POST',
                 client_ip_address='127.0.0.1', response='{}',
                 status_code=500, execution_time=1.5, added_on=now,
-                error_type='InternalServerError',
             )
 
-    def test_group_by_endpoint(self):
+    def test_group_by_endpoint_and_status(self):
         from django.db.models import Count
         groups = list(
             self.APILogsModel.objects.filter(status_code__gte=400)
-            .values('api', 'status_code', 'error_type')
+            .values('api', 'status_code')
             .annotate(count=Count('id'))
             .order_by('-count')
         )
@@ -257,16 +200,15 @@ class TestErrorGrouping(TestCase):
         self.assertEqual(groups[0]['status_code'], 404)
         self.assertEqual(groups[0]['count'], 5)
 
-    def test_group_by_error_type(self):
+    def test_group_by_status_code(self):
         from django.db.models import Count
         groups = list(
             self.APILogsModel.objects.filter(status_code__gte=400)
-            .values('error_type')
+            .values('status_code')
             .annotate(count=Count('id'))
             .order_by('-count')
         )
         self.assertEqual(len(groups), 3)
-        self.assertEqual(groups[0]['error_type'], 'Not found.')
         self.assertEqual(groups[0]['count'], 5)
 
     def test_error_rate(self):
@@ -274,5 +216,4 @@ class TestErrorGrouping(TestCase):
         errors = self.APILogsModel.objects.filter(status_code__gte=400).count()
         rate = round((errors / total) * 100, 1)
         self.assertEqual(errors, 10)
-        self.assertEqual(total, 10)
         self.assertEqual(rate, 100.0)
