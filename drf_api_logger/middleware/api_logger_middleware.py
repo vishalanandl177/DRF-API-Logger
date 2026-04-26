@@ -106,6 +106,29 @@ class APILoggerMiddleware:
 
         return False
 
+    def _extract_error_type(self, response_body, status_code):
+        if isinstance(response_body, dict):
+            detail = response_body.get('detail', '')
+            if isinstance(detail, str) and detail:
+                return detail[:256]
+            code = response_body.get('code', '')
+            if isinstance(code, str) and code:
+                return code[:256]
+        STATUS_MAP = {
+            400: 'BadRequest',
+            401: 'Unauthorized',
+            403: 'Forbidden',
+            404: 'NotFound',
+            405: 'MethodNotAllowed',
+            408: 'RequestTimeout',
+            429: 'Throttled',
+            500: 'InternalServerError',
+            502: 'BadGateway',
+            503: 'ServiceUnavailable',
+            504: 'GatewayTimeout',
+        }
+        return STATUS_MAP.get(status_code, 'HTTP{}'.format(status_code))
+
     def __call__(self, request):
         # Skip logging for static and media files
         if self.is_static_or_media_request(request.path):
@@ -176,8 +199,16 @@ class APILoggerMiddleware:
                 reset_queries()
 
             view_start = time.time()
-            response = self.get_response(request)
-            view_end = time.time()
+            caught_exception = None
+            try:
+                response = self.get_response(request)
+            except Exception as e:
+                caught_exception = e
+                raise
+            finally:
+                view_end = time.time()
+                if caught_exception:
+                    request._drf_logger_error_type = type(caught_exception).__name__
 
             # Capture SQL data immediately after the view returns
             sql_data = None
@@ -275,6 +306,13 @@ class APILoggerMiddleware:
                         profiling['sql'] = sql_data
                     data['profiling_data'] = profiling
                     data['sql_query_count'] = sql_data['query_count'] if sql_data else None
+
+                # Capture error type for 4xx/5xx responses
+                if response.status_code >= 400:
+                    error_type = getattr(request, '_drf_logger_error_type', None)
+                    if not error_type:
+                        error_type = self._extract_error_type(response_body, response.status_code)
+                    data['error_type'] = error_type
 
                 if self.DRF_API_LOGGER_DATABASE and LOGGER_THREAD:
                     d = data.copy()
