@@ -12,7 +12,7 @@ _tracer = None
 def get_tracer():
     global _tracer
     if _tracer is None and HAS_OTEL:
-        _tracer = trace.get_tracer('drf_api_logger', '1.2.0')
+        _tracer = trace.get_tracer('drf_api_logger', '1.3.0')
     return _tracer
 
 
