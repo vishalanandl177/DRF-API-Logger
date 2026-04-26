@@ -88,6 +88,10 @@ class APILoggerMiddleware:
         if hasattr(settings, 'DRF_API_LOGGER_PROFILING_SQL_TRACKING'):
             self.DRF_API_LOGGER_PROFILING_SQL_TRACKING = settings.DRF_API_LOGGER_PROFILING_SQL_TRACKING
 
+        self.DRF_API_LOGGER_ENABLE_OTEL = False
+        if hasattr(settings, 'DRF_API_LOGGER_ENABLE_OTEL'):
+            self.DRF_API_LOGGER_ENABLE_OTEL = settings.DRF_API_LOGGER_ENABLE_OTEL
+
     def is_static_or_media_request(self, path):
         static_url = getattr(settings, 'STATIC_URL', None)
         media_url = getattr(settings, 'MEDIA_URL', None)
@@ -152,6 +156,13 @@ class APILoggerMiddleware:
                 request.tracing_id = tracing_id
 
             middleware_before_end = time.time()
+
+            # Start OTel span before calling the view
+            otel_span = None
+            otel_span_owned = False
+            if self.DRF_API_LOGGER_ENABLE_OTEL:
+                from drf_api_logger.otel import start_span
+                otel_span, otel_span_owned = start_span(method, request.path)
 
             # Set up SQL tracking before calling the view
             sql_profiling_active = (
@@ -280,6 +291,9 @@ class APILoggerMiddleware:
                             'tracing_id': tracing_id
                         })
                     API_LOGGER_SIGNAL.listen(**data)
+                if self.DRF_API_LOGGER_ENABLE_OTEL and otel_span:
+                    from drf_api_logger.otel import finish_span
+                    finish_span(otel_span, otel_span_owned, data, profiling)
             else:
                 return response
         else:

@@ -93,6 +93,13 @@ def database_log_enabled():
     return drf_api_logger_database
 
 
+def otel_enabled():
+    drf_api_logger_otel = False
+    if hasattr(settings, 'DRF_API_LOGGER_ENABLE_OTEL'):
+        drf_api_logger_otel = settings.DRF_API_LOGGER_ENABLE_OTEL
+    return drf_api_logger_otel
+
+
 def profiling_enabled():
     drf_api_logger_profiling = False
     if hasattr(settings, 'DRF_API_LOGGER_ENABLE_PROFILING'):

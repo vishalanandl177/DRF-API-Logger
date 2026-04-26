@@ -324,6 +324,57 @@ def my_api_view(request):
     return Response({'status': 'ok'})
 ```
 
+### OpenTelemetry Integration
+
+Export API log data as OpenTelemetry spans to any OTel-compatible backend (Jaeger, Datadog, Grafana Tempo, etc.):
+
+```bash
+pip install drf-api-logger[otel]
+```
+
+```python
+# settings.py
+DRF_API_LOGGER_ENABLE_OTEL = True  # Default: False
+```
+
+When enabled, the middleware emits spans with standard HTTP attributes and profiling data:
+
+**Span Attributes:**
+
+| Attribute | Example | Description |
+|---|---|---|
+| `http.method` | `GET` | HTTP method |
+| `http.url` | `/api/users/` | Request URL |
+| `http.status_code` | `200` | Response status code |
+| `http.client_ip` | `192.168.1.100` | Client IP address |
+| `drf.execution_time_ms` | `150.0` | Total execution time in ms |
+| `drf.profiling.view_and_serialization_ms` | `145.0` | View time (when profiling enabled) |
+| `drf.profiling.middleware_before_view_ms` | `2.0` | Pre-view middleware time |
+| `drf.profiling.middleware_after_view_ms` | `3.0` | Post-view middleware time |
+| `db.query_count` | `47` | SQL query count (when profiling enabled) |
+| `db.total_time_ms` | `120.0` | Total SQL time (when profiling enabled) |
+
+**Works alongside existing instrumentation:** If `opentelemetry-instrumentation-django` is already creating spans, `drf-api-logger` enriches the existing span with profiling attributes instead of creating a duplicate.
+
+**Example with Jaeger:**
+
+```python
+# settings.py
+DRF_API_LOGGER_DATABASE = True
+DRF_API_LOGGER_ENABLE_PROFILING = True
+DRF_API_LOGGER_ENABLE_OTEL = True
+
+# Standard OTel SDK setup (in manage.py or wsgi.py)
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+
+trace.set_tracer_provider(TracerProvider())
+jaeger_exporter = JaegerExporter(agent_host_name="localhost", agent_port=6831)
+trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(jaeger_exporter))
+```
+
 ## 📊 Programmatic Access
 
 ### Querying Log Data

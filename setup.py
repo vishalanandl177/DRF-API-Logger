@@ -29,6 +29,9 @@ setuptools.setup(
     url="https://github.com/vishalanandl177/DRF-API-Logger",
     packages=setuptools.find_packages(),
     install_requires=["djangorestframework>=3.7.4", "bleach>=3.1.5"],
+    extras_require={
+        "otel": ["opentelemetry-api>=1.20.0", "opentelemetry-sdk>=1.20.0"],
+    },
     license="Apache 2.0",
     python_requires='>=3.6',
     include_package_data=True,
