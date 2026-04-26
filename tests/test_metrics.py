@@ -122,8 +122,8 @@ class TestPrometheusFormat(TestCase):
 
     def test_format_empty(self):
         output = format_prometheus()
-        self.assertIn('drf_api_requests_total 0', output)
-        self.assertIn('drf_api_errors_total 0', output)
+        self.assertIn('drf_api_logger_requests_total 0', output)
+        self.assertIn('drf_api_logger_errors_total 0', output)
 
     def test_format_with_data(self):
         record_request({
@@ -135,10 +135,10 @@ class TestPrometheusFormat(TestCase):
             'execution_time': 0.02, 'error_type': 'BadRequest',
         })
         output = format_prometheus()
-        self.assertIn('drf_api_requests_total 2', output)
-        self.assertIn('drf_api_errors_total 1', output)
-        self.assertIn('drf_api_latency_avg_ms', output)
-        self.assertIn('drf_api_latency_max_ms', output)
+        self.assertIn('drf_api_logger_requests_total 2', output)
+        self.assertIn('drf_api_logger_errors_total 1', output)
+        self.assertIn('drf_api_logger_latency_avg_ms', output)
+        self.assertIn('drf_api_logger_latency_max_ms', output)
         self.assertIn('method="GET"', output)
         self.assertIn('method="POST"', output)
         self.assertIn('type="BadRequest"', output)
@@ -175,7 +175,7 @@ class TestMetricsViews(TestCase):
         response = metrics_prometheus(request)
         self.assertEqual(response.status_code, 200)
         self.assertIn('text/plain', response['Content-Type'])
-        self.assertIn('drf_api_requests_total 1', response.content.decode())
+        self.assertIn('drf_api_logger_requests_total 1', response.content.decode())
 
 
 class TestMiddlewareMetricsIntegration(TestCase):

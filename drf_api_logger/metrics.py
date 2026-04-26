@@ -90,45 +90,45 @@ def get_metrics():
 def format_prometheus():
     m = get_metrics()
     lines = []
-    lines.append('# HELP drf_api_requests_total Total API requests')
-    lines.append('# TYPE drf_api_requests_total counter')
-    lines.append('drf_api_requests_total {}'.format(m['counters']['request_total']))
+    lines.append('# HELP drf_api_logger_requests_total Total API requests')
+    lines.append('# TYPE drf_api_logger_requests_total counter')
+    lines.append('drf_api_logger_requests_total {}'.format(m['counters']['request_total']))
 
-    lines.append('# HELP drf_api_errors_total Total API errors (4xx + 5xx)')
-    lines.append('# TYPE drf_api_errors_total counter')
-    lines.append('drf_api_errors_total {}'.format(m['counters']['error_total']))
+    lines.append('# HELP drf_api_logger_errors_total Total API errors (4xx + 5xx)')
+    lines.append('# TYPE drf_api_logger_errors_total counter')
+    lines.append('drf_api_logger_errors_total {}'.format(m['counters']['error_total']))
 
-    lines.append('# HELP drf_api_error_rate_pct Error rate percentage')
-    lines.append('# TYPE drf_api_error_rate_pct gauge')
-    lines.append('drf_api_error_rate_pct {}'.format(m['error_rate_pct']))
+    lines.append('# HELP drf_api_logger_error_rate_pct Error rate percentage')
+    lines.append('# TYPE drf_api_logger_error_rate_pct gauge')
+    lines.append('drf_api_logger_error_rate_pct {}'.format(m['error_rate_pct']))
 
     for status_key in ['status_2xx', 'status_3xx', 'status_4xx', 'status_5xx']:
         code_range = status_key.replace('status_', '')
-        lines.append('drf_api_responses_total{{range="{}"}} {}'.format(
+        lines.append('drf_api_logger_responses_total{{range="{}"}} {}'.format(
             code_range, m['counters'][status_key]
         ))
 
-    lines.append('# HELP drf_api_latency_avg_ms Average request latency in milliseconds')
-    lines.append('# TYPE drf_api_latency_avg_ms gauge')
-    lines.append('drf_api_latency_avg_ms {}'.format(m['latency']['avg_ms']))
+    lines.append('# HELP drf_api_logger_latency_avg_ms Average request latency in milliseconds')
+    lines.append('# TYPE drf_api_logger_latency_avg_ms gauge')
+    lines.append('drf_api_logger_latency_avg_ms {}'.format(m['latency']['avg_ms']))
 
-    lines.append('# HELP drf_api_latency_max_ms Maximum request latency in milliseconds')
-    lines.append('# TYPE drf_api_latency_max_ms gauge')
-    lines.append('drf_api_latency_max_ms {}'.format(m['latency']['max_ms']))
+    lines.append('# HELP drf_api_logger_latency_max_ms Maximum request latency in milliseconds')
+    lines.append('# TYPE drf_api_logger_latency_max_ms gauge')
+    lines.append('drf_api_logger_latency_max_ms {}'.format(m['latency']['max_ms']))
 
     for method, count in m['per_method'].items():
-        lines.append('drf_api_requests_by_method{{method="{}"}} {}'.format(method, count))
+        lines.append('drf_api_logger_requests_by_method{{method="{}"}} {}'.format(method, count))
 
     for error_type, count in m['per_error_type'].items():
         safe_type = error_type.replace('"', '\\"')
-        lines.append('drf_api_errors_by_type{{type="{}"}} {}'.format(safe_type, count))
+        lines.append('drf_api_logger_errors_by_type{{type="{}"}} {}'.format(safe_type, count))
 
     for endpoint, stats in sorted(m['per_endpoint'].items(), key=lambda x: -x[1]['count'])[:50]:
         safe_ep = endpoint.replace('"', '\\"')
         avg_ms = round((stats['latency_sum'] / stats['count']) * 1000, 3) if stats['count'] > 0 else 0
-        lines.append('drf_api_endpoint_requests{{endpoint="{}"}} {}'.format(safe_ep, stats['count']))
-        lines.append('drf_api_endpoint_errors{{endpoint="{}"}} {}'.format(safe_ep, stats['errors']))
-        lines.append('drf_api_endpoint_latency_avg_ms{{endpoint="{}"}} {}'.format(safe_ep, avg_ms))
+        lines.append('drf_api_logger_endpoint_requests{{endpoint="{}"}} {}'.format(safe_ep, stats['count']))
+        lines.append('drf_api_logger_endpoint_errors{{endpoint="{}"}} {}'.format(safe_ep, stats['errors']))
+        lines.append('drf_api_logger_endpoint_latency_avg_ms{{endpoint="{}"}} {}'.format(safe_ep, avg_ms))
 
     return '\n'.join(lines) + '\n'
 

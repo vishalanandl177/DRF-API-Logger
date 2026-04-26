@@ -403,31 +403,31 @@ urlpatterns = [
 
 ```
 # Total request and error counts
-drf_api_requests_total 15234
-drf_api_errors_total 342
-drf_api_error_rate_pct 2.24
+drf_api_logger_requests_total 15234
+drf_api_logger_errors_total 342
+drf_api_logger_error_rate_pct 2.24
 
 # Status code distribution
-drf_api_responses_total{range="2xx"} 14892
-drf_api_responses_total{range="4xx"} 298
-drf_api_responses_total{range="5xx"} 44
+drf_api_logger_responses_total{range="2xx"} 14892
+drf_api_logger_responses_total{range="4xx"} 298
+drf_api_logger_responses_total{range="5xx"} 44
 
 # Latency
-drf_api_latency_avg_ms 45.2
-drf_api_latency_max_ms 3200.5
+drf_api_logger_latency_avg_ms 45.2
+drf_api_logger_latency_max_ms 3200.5
 
 # Per-method breakdown
-drf_api_requests_by_method{method="GET"} 10234
-drf_api_requests_by_method{method="POST"} 4100
+drf_api_logger_requests_by_method{method="GET"} 10234
+drf_api_logger_requests_by_method{method="POST"} 4100
 
 # Per-endpoint stats
-drf_api_endpoint_requests{endpoint="/api/users/"} 5200
-drf_api_endpoint_errors{endpoint="/api/users/"} 12
-drf_api_endpoint_latency_avg_ms{endpoint="/api/users/"} 32.1
+drf_api_logger_endpoint_requests{endpoint="/api/users/"} 5200
+drf_api_logger_endpoint_errors{endpoint="/api/users/"} 12
+drf_api_logger_endpoint_latency_avg_ms{endpoint="/api/users/"} 32.1
 
 # Error types
-drf_api_errors_by_type{type="NotFound"} 200
-drf_api_errors_by_type{type="Unauthorized"} 98
+drf_api_logger_errors_by_type{type="NotFound"} 200
+drf_api_logger_errors_by_type{type="Unauthorized"} 98
 ```
 
 **Prometheus scrape config:**
