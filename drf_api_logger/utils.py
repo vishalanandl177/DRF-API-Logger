@@ -2,12 +2,47 @@ import re
 from django.conf import settings
 
 # Default list of sensitive keys to filter from logs or API data.
-SENSITIVE_KEYS = ['password', 'token', 'access', 'refresh']
+SENSITIVE_KEYS = [
+    'password',
+    'token',
+    'access',
+    'refresh',
+    'authorization',
+    'proxy_authorization',
+    'cookie',
+    'set_cookie',
+    'x_api_key',
+    'api_key',
+    'secret',
+    'client_secret',
+    'private_key',
+    'sessionid',
+    'csrfmiddlewaretoken',
+]
 
 # Extend the sensitive keys if additional keys are provided in Django settings.
 if hasattr(settings, 'DRF_API_LOGGER_EXCLUDE_KEYS'):
     if type(settings.DRF_API_LOGGER_EXCLUDE_KEYS) in (list, tuple):
         SENSITIVE_KEYS.extend(settings.DRF_API_LOGGER_EXCLUDE_KEYS)
+
+
+FILTERED_VALUE = "***FILTERED***"
+
+
+def _normalize_sensitive_key(key):
+    return str(key).strip().lower().replace('-', '_')
+
+
+def _get_sensitive_keys():
+    keys = list(SENSITIVE_KEYS)
+    if hasattr(settings, 'DRF_API_LOGGER_EXCLUDE_KEYS'):
+        if type(settings.DRF_API_LOGGER_EXCLUDE_KEYS) in (list, tuple):
+            keys.extend(settings.DRF_API_LOGGER_EXCLUDE_KEYS)
+    return {_normalize_sensitive_key(key) for key in keys}
+
+
+def _is_sensitive_key(key):
+    return _normalize_sensitive_key(key) in _get_sensitive_keys()
 
 
 def get_headers(request=None):
@@ -93,6 +128,13 @@ def database_log_enabled():
     return drf_api_logger_database
 
 
+def otel_enabled():
+    drf_api_logger_otel = False
+    if hasattr(settings, 'DRF_API_LOGGER_ENABLE_OTEL'):
+        drf_api_logger_otel = settings.DRF_API_LOGGER_ENABLE_OTEL
+    return drf_api_logger_otel
+
+
 def profiling_enabled():
     drf_api_logger_profiling = False
     if hasattr(settings, 'DRF_API_LOGGER_ENABLE_PROFILING'):
@@ -120,13 +162,13 @@ def mask_sensitive_data(data, mask_api_parameters=False):
     if type(data) is not dict:
         # Handle query string case if enabled
         if mask_api_parameters and type(data) is str:
-            for sensitive_key in SENSITIVE_KEYS:
-                # Replaces values like token=abcd1234& -> token=***FILTERED***&
-                data = re.sub(
-                    '({}=)(.*?)($|&)'.format(sensitive_key),
-                    r'\1***FILTERED***\3',
-                    data
-                )
+            def replace_param(match):
+                separator, key, value = match.groups()
+                if _is_sensitive_key(key):
+                    return '{}{}={}'.format(separator, key, FILTERED_VALUE)
+                return '{}{}={}'.format(separator, key, value)
+
+            data = re.sub(r'([?&])([^=&#]+)=([^&#]*)', replace_param, data)
 
         # If it's a list, sanitize each item recursively
         if type(data) is list:
@@ -134,14 +176,18 @@ def mask_sensitive_data(data, mask_api_parameters=False):
         return data
 
     # Process each key-value pair in the dictionary
+    masked_data = {}
     for key, value in data.items():
-        if key in SENSITIVE_KEYS:
-            data[key] = "***FILTERED***"  # Mask sensitive keys
+        if _is_sensitive_key(key):
+            masked_data[key] = FILTERED_VALUE  # Mask sensitive keys
 
         elif type(value) is dict:
-            data[key] = mask_sensitive_data(data[key])  # Recurse into nested dict
+            masked_data[key] = mask_sensitive_data(value)  # Recurse into nested dict
 
         elif type(value) is list:
-            data[key] = [mask_sensitive_data(item) for item in data[key]]  # Recurse into list
+            masked_data[key] = [mask_sensitive_data(item) for item in value]  # Recurse into list
 
-    return data
+        else:
+            masked_data[key] = value
+
+    return masked_data

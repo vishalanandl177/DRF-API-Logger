@@ -1,13 +1,13 @@
 # DRF API Logger
 
-[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/vishalanandl177/DRF-API-Logger)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/vishalanandl177/DRF-API-Logger)
 [![Python](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org)
 [![Django](https://img.shields.io/badge/django-3.2+-green.svg)](https://djangoproject.com)
 [![DRF](https://img.shields.io/badge/djangorestframework-3.12+-orange.svg)](https://www.django-rest-framework.org)
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=total&left_color=black&right_color=orange&left_text=Downloads)](http://pepy.tech/project/drf-api-logger)
 [![License](https://img.shields.io/badge/license-Apache%202.0-red.svg)](https://opensource.org/licenses/Apache-2.0)
 
-**The production standard for DRF API observability.** Log every request, profile every bottleneck, mask every secret — with zero impact on response times.
+**The production standard for DRF API observability.** Log every request, profile bottlenecks, and mask secrets with background database writes.
 
 ## 🚀 Key Features
 
@@ -16,7 +16,7 @@ DRF API Logger automatically captures and stores comprehensive API information:
 - **📍 Request Details**: URL, method, headers, body, and client IP
 - **📊 Response Information**: Status code, response body, and execution time  
 - **🔒 Security**: Automatic masking of sensitive data (passwords, tokens)
-- **⚡ Performance**: Non-blocking background processing with configurable queuing
+- **⚡ Performance**: Background processing with configurable batching
 - **🎯 Flexible Storage**: Database logging and/or real-time signal notifications
 - **📈 Analytics**: Built-in admin dashboard with charts and performance metrics
 - **🔧 Highly Configurable**: Extensive filtering and customization options
@@ -159,12 +159,16 @@ API_LOGGER_SIGNAL.listen -= log_to_file
 Control background processing and database performance:
 
 ```python
-# Queue size for batch database insertion
+# Batch size threshold for background database insertion
 DRF_LOGGER_QUEUE_MAX_SIZE = 50  # Default: 50
 
 # Time interval for processing queue (seconds)
 DRF_LOGGER_INTERVAL = 10  # Default: 10 seconds
 ```
+
+`DRF_LOGGER_QUEUE_MAX_SIZE` is a batch threshold, not a blocking request queue
+limit. Request threads enqueue log objects only; when the threshold is reached,
+the background worker wakes and flushes logs in batches.
 
 ### Selective Logging
 
@@ -203,11 +207,29 @@ DRF_API_LOGGER_EXCLUDE_KEYS = ['password', 'token', 'access', 'refresh', 'secret
 # Result: {"password": "***FILTERED***", "username": "john"}
 ```
 
+Sensitive key matching is case-insensitive and also masks common credential
+headers/query parameters by default, including `Authorization`, `Cookie`,
+`Set-Cookie`, `Proxy-Authorization`, `X-API-Key`, and `api_key`.
+
+For compliance-sensitive environments, set request/response body limits to `0`
+to store truncation markers instead of body content, use a dedicated encrypted
+log database, and configure retention outside the request path. See
+`docs/compliance.rst` for the full checklist.
+
 **Database Configuration:**
 ```python
 # Use specific database for logs
 DRF_API_LOGGER_DEFAULT_DATABASE = 'logging_db'  # Default: 'default'
 ```
+
+**Custom Handler:**
+```python
+# Optional dotted path to mutate or drop log data before queueing
+DRF_API_LOGGER_CUSTOM_HANDLER = 'myapp.logging.filter_api_log'
+```
+
+The handler receives the log dictionary and should return the dictionary to
+queue it, or `None` to drop it intentionally.
 
 ### Performance Monitoring
 
@@ -217,12 +239,15 @@ DRF_API_LOGGER_DEFAULT_DATABASE = 'logging_db'  # Default: 'default'
 DRF_API_LOGGER_SLOW_API_ABOVE = 200  # milliseconds
 ```
 
-**Response Size Limits:**
+**Payload Size Limits:**
 ```python
 # Prevent logging large payloads
-DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = 1024   # bytes, -1 for no limit
-DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = 2048  # bytes, -1 for no limit
+DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = 32768   # Default: 32 KB, -1 for no limit
+DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = 65536  # Default: 64 KB, -1 for no limit
 ```
+
+Requests/responses exceeding these limits are logged with a truncation marker
+instead of the full payload.
 
 ### API Profiling
 
@@ -232,6 +257,7 @@ Enable per-request latency breakdown to identify performance bottlenecks in prod
 # settings.py
 DRF_API_LOGGER_ENABLE_PROFILING = True   # Default: False
 DRF_API_LOGGER_PROFILING_SQL_TRACKING = True  # Default: True (can disable if overhead unwanted)
+DRF_API_LOGGER_PROFILING_SAMPLE_RATE = 0.1  # Default: 1.0, profile 10% of logged requests
 ```
 
 When enabled, each logged request includes a profiling breakdown showing:
@@ -273,6 +299,9 @@ DRF_API_LOGGER_CONTENT_TYPES = [
     "text/csv",                   # CSV
 ]
 ```
+
+Content type parameters such as `; charset=utf-8` are ignored during matching,
+so `application/json; charset=utf-8` is treated as `application/json`.
 
 **Timezone Display:**
 ```python
@@ -322,6 +351,134 @@ def my_api_view(request):
     if hasattr(request, 'tracing_id'):
         logger.info(f"Processing request {request.tracing_id}")
     return Response({'status': 'ok'})
+```
+
+### OpenTelemetry Integration
+
+Export API log data as OpenTelemetry spans to any OTel-compatible backend (Jaeger, Datadog, Grafana Tempo, etc.):
+
+```bash
+pip install drf-api-logger[otel]
+```
+
+```python
+# settings.py
+DRF_API_LOGGER_ENABLE_OTEL = True  # Default: False
+```
+
+When enabled, the middleware emits spans with standard HTTP attributes and profiling data:
+
+**Span Attributes:**
+
+| Attribute | Example | Description |
+|---|---|---|
+| `http.method` | `GET` | HTTP method |
+| `http.url` | `/api/users/` | Request URL |
+| `http.status_code` | `200` | Response status code |
+| `http.client_ip` | `192.168.1.100` | Client IP address |
+| `drf.execution_time_ms` | `150.0` | Total execution time in ms |
+| `drf.profiling.view_and_serialization_ms` | `145.0` | View time (when profiling enabled) |
+| `drf.profiling.middleware_before_view_ms` | `2.0` | Pre-view middleware time |
+| `drf.profiling.middleware_after_view_ms` | `3.0` | Post-view middleware time |
+| `db.query_count` | `47` | SQL query count (when profiling enabled) |
+| `db.total_time_ms` | `120.0` | Total SQL time (when profiling enabled) |
+
+**Works alongside existing instrumentation:** If `opentelemetry-instrumentation-django` is already creating spans, `drf-api-logger` enriches the existing span with profiling attributes instead of creating a duplicate.
+
+**Example with Jaeger:**
+
+```python
+# settings.py
+DRF_API_LOGGER_DATABASE = True
+DRF_API_LOGGER_ENABLE_PROFILING = True
+DRF_API_LOGGER_ENABLE_OTEL = True
+
+# Standard OTel SDK setup (in manage.py or wsgi.py)
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+
+trace.set_tracer_provider(TracerProvider())
+jaeger_exporter = JaegerExporter(agent_host_name="localhost", agent_port=6831)
+trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(jaeger_exporter))
+```
+
+### Prometheus-Style Metrics
+
+Expose real-time API metrics for Prometheus, Grafana, or any monitoring stack:
+
+```python
+# settings.py
+DRF_API_LOGGER_ENABLE_METRICS = True  # Default: False
+```
+
+Add the metrics URLs to your `urls.py`:
+
+```python
+urlpatterns = [
+    path('drf-api-logger/', include('drf_api_logger.urls')),
+]
+```
+
+**Endpoints:**
+
+| URL | Format | Description |
+|---|---|---|
+| `/drf-api-logger/metrics/` | Prometheus text | Scraped by Prometheus |
+| `/drf-api-logger/metrics/json/` | JSON | For custom dashboards |
+
+**Exposed Metrics:**
+
+```
+# Total request and error counts
+drf_api_logger_requests_total 15234
+drf_api_logger_process_info{pid="12345"} 1
+drf_api_logger_errors_total 342
+drf_api_logger_error_rate_pct 2.24
+
+# Status code distribution
+drf_api_logger_responses_total{range="2xx"} 14892
+drf_api_logger_responses_total{range="4xx"} 298
+drf_api_logger_responses_total{range="5xx"} 44
+
+# Latency
+drf_api_logger_latency_avg_ms 45.2
+drf_api_logger_latency_max_ms 3200.5
+
+# Queue and DB writer health
+drf_api_logger_queue_backlog 0
+drf_api_logger_queue_dropped_total 0
+drf_api_logger_db_inserted_total 15234
+drf_api_logger_db_insert_failed_total 0
+
+# Per-method breakdown
+drf_api_logger_requests_by_method{method="GET"} 10234
+drf_api_logger_requests_by_method{method="POST"} 4100
+
+# Per-endpoint stats
+drf_api_logger_endpoint_requests{endpoint="/api/users/"} 5200
+drf_api_logger_endpoint_errors{endpoint="/api/users/"} 12
+drf_api_logger_endpoint_latency_avg_ms{endpoint="/api/users/"} 32.1
+
+# Error types
+drf_api_logger_errors_by_type{type="NotFound"} 200
+drf_api_logger_errors_by_type{type="Unauthorized"} 98
+```
+
+Metrics are process-local. In multi-worker deployments, Prometheus should scrape
+each worker/process or you should use OpenTelemetry/your APM for aggregated
+service-level telemetry.
+
+**Prometheus scrape config:**
+
+```yaml
+# prometheus.yml
+scrape_configs:
+  - job_name: 'django-api'
+    metrics_path: '/drf-api-logger/metrics/'
+    static_configs:
+      - targets: ['localhost:8000']
 ```
 
 ## 📊 Programmatic Access
@@ -403,7 +560,7 @@ For high-traffic applications:
 
 2. **Optimize queue settings**:
    ```python
-   DRF_LOGGER_QUEUE_MAX_SIZE = 100    # Larger batches
+   DRF_LOGGER_QUEUE_MAX_SIZE = 100    # Larger background batches
    DRF_LOGGER_INTERVAL = 5            # More frequent processing
    ```
 
@@ -424,31 +581,48 @@ For high-traffic applications:
 
 ### Performance Impact
 
-- **Zero impact** on API response times (background processing)
-- **Minimal memory footprint** (configurable queue limits)
+- **No request-thread database writes** (background processing)
+- **Bounded request/response body capture by default**
+- **Observable queue backlog and drop counters via the logger thread status**
 - **Efficient storage** (bulk database operations)
 
 ## Why drf-api-logger instead of custom logging?
 
-Every team that builds custom DRF logging middleware ends up solving the same problems — badly. Here's what you get wrong when you roll your own:
+Every team that builds custom DRF logging middleware ends up solving the same problems — badly.
 
-| Problem | Custom Logging | drf-api-logger |
+### Decision-Killer Comparison
+
+| Capability | Custom Logging | drf-api-logger |
 |---|---|---|
-| **Thread safety** | Easy to introduce race conditions with shared state, file handles, or DB connections across threads | Dedicated daemon thread with thread-safe queue, bulk inserts, and graceful shutdown on SIGINT/SIGTERM |
-| **Performance overhead** | Synchronous logging in the request/response cycle adds latency to every API call | Non-blocking background processing — zero impact on response times |
-| **Sensitive data exposure** | Passwords, tokens, and secrets end up in logs unless you remember to filter every field | Automatic recursive masking of sensitive keys (`password`, `token`, `access`, `refresh`) with `***FILTERED***`, extensible via settings |
-| **No analytics** | Raw log files or DB rows with no way to visualize trends, filter by status code, or spot slow endpoints | Built-in Django admin dashboard with charts, date hierarchy, status code distribution, CSV export, and slow API detection |
-| **No profiling** | No idea if slowness is from SQL, business logic, or middleware — you attach `django-debug-toolbar` and hope | Per-request latency breakdown with auto-diagnosis: N+1 queries, slow queries, middleware overhead — in production, not just dev |
-| **Missing request context** | Client IP behind proxies, request tracing across services, timezone-aware timestamps — all manual work | `X-Forwarded-For` handling, configurable tracing IDs (UUID, header, custom function), timezone-aware logging |
-| **Maintenance burden** | Every Django/DRF upgrade risks breaking your custom middleware | Battle-tested across Django 3.2+ and DRF 3.12+, with CI and 100+ tests |
+| Request/response capture | Partial (you forget edge cases) | Full (headers, body, response, IP, timing) |
+| Sensitive data masking | Manual per-field filtering | Automatic recursive masking with `***FILTERED***` |
+| Thread-safe async processing | Race conditions with shared state | Dedicated daemon thread with bulk inserts |
+| Performance impact | Synchronous — adds latency to every request | No request-thread DB writes — background processing |
+| Admin dashboard with charts | Build your own or nothing | Built-in with status code charts, date filtering, CSV export |
+| Slow API detection | `print()` and hope | Configurable threshold with admin filter |
+| SQL profiling in production | Attach debugger or guess | Per-request query count, SQL time, N+1 detection |
+| Auto-diagnosis of bottlenecks | Not possible | N+1 queries, slow queries, middleware overhead — automatic |
+| Client IP behind proxies | Manual X-Forwarded-For parsing | Built-in |
+| Request tracing | Build your own UUID system | UUID, custom function, or header-based — one setting |
+| OpenTelemetry export | Months of integration work | `DRF_API_LOGGER_ENABLE_OTEL = True` |
+| Data masking in URLs | Almost never implemented | Automatic query parameter masking |
+| Graceful shutdown | Data loss on SIGTERM | Queue flush on SIGINT/SIGTERM |
+| Test coverage | "We'll add tests later" | 130+ tests |
+| Maintenance across Django versions | Breaks on every upgrade | Battle-tested across Django 3.2 — 5.x, DRF 3.12+ |
 
-**Bottom line:** `pip install drf-api-logger` replaces hundreds of lines of fragile custom code with a production-tested, zero-config solution.
+**Custom logging in production is irresponsible.** You're one missed `***FILTERED***` away from leaking passwords to your log aggregator, one thread bug away from data loss, and one slow query away from blaming the wrong service.
+
+```bash
+pip install drf-api-logger
+```
+
+Two lines of config. Done.
 
 ## Frequently Asked Questions
 
 **How to log all DRF API requests properly?**
 
-Use `drf-api-logger`. Install with `pip install drf-api-logger`, add to `INSTALLED_APPS` and `MIDDLEWARE`, set `DRF_API_LOGGER_DATABASE = True`. Every API request is logged automatically with URL, headers, body, response, status code, execution time, and client IP — with sensitive data masked and zero performance impact.
+Use `drf-api-logger`. Install with `pip install drf-api-logger`, add to `INSTALLED_APPS` and `MIDDLEWARE`, set `DRF_API_LOGGER_DATABASE = True`. Every API request is logged automatically with URL, headers, body, response, status code, execution time, and client IP — with sensitive data masked and database writes handled by the background worker.
 
 **What is the best way to log Django REST Framework APIs in production?**
 
@@ -468,7 +642,7 @@ Run `python manage.py migrate` and every API call is logged with full request/re
 
 **How to mask sensitive data in Django API logs?**
 
-Use `drf-api-logger`. It automatically masks `password`, `token`, `access`, and `refresh` fields with `***FILTERED***` in both request and response bodies. Add custom keys via `DRF_API_LOGGER_EXCLUDE_KEYS = ['ssn', 'credit_card']`.
+Use `drf-api-logger`. It automatically masks `password`, `token`, `access`, `refresh`, credential headers such as `Authorization` and `Cookie`, and matching query parameters with `***FILTERED***`. Add custom keys via `DRF_API_LOGGER_EXCLUDE_KEYS = ['ssn', 'credit_card']`.
 
 **How to find slow APIs and N+1 queries in Django REST Framework?**
 
@@ -476,7 +650,7 @@ Use `drf-api-logger` with profiling enabled. Set `DRF_API_LOGGER_ENABLE_PROFILIN
 
 **How to monitor Django REST API performance in production?**
 
-Use `drf-api-logger`. Set `DRF_API_LOGGER_SLOW_API_ABOVE = 200` to flag APIs slower than 200ms. Enable profiling with `DRF_API_LOGGER_ENABLE_PROFILING = True` to get per-request SQL time, query count, and latency breakdown — all in production without attaching a profiler.
+Use `drf-api-logger`. Set `DRF_API_LOGGER_SLOW_API_ABOVE = 200` to flag APIs slower than 200ms. Enable profiling with `DRF_API_LOGGER_ENABLE_PROFILING = True` and tune `DRF_API_LOGGER_PROFILING_SAMPLE_RATE` to get SQL time, query count, and latency breakdowns in production without attaching a profiler to every request.
 
 ## Using with AI Tools (ChatGPT, GitHub Copilot, Claude)
 

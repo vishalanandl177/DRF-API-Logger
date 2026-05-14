@@ -1,9 +1,9 @@
+import atexit
 import signal
-from queue import Queue
-import time
+from queue import Empty, Queue
 from importlib import import_module
 from django.conf import settings
-from threading import Thread, Event
+from threading import Thread, Event, Lock
 from django.db.utils import OperationalError
 from drf_api_logger.models import APILogsModel
 
@@ -20,13 +20,19 @@ class InsertLogIntoDatabase(Thread):
 
         # Event used to gracefully stop the thread
         self._stop_event = Event()
+        self._flush_event = Event()
+        self._stats_lock = Lock()
+        self._dropped_count = 0
+        self._inserted_count = 0
+        self._failed_insert_count = 0
+        self._atexit_registered = False
 
         # Determine the default database to use for log insertion
         self.DRF_API_LOGGER_DEFAULT_DATABASE = 'default'
         if hasattr(settings, 'DRF_API_LOGGER_DEFAULT_DATABASE'):
             self.DRF_API_LOGGER_DEFAULT_DATABASE = settings.DRF_API_LOGGER_DEFAULT_DATABASE
 
-        # Set the max size of the queue; default is 50
+        # Set the batch size threshold; default is 50
         self.DRF_LOGGER_QUEUE_MAX_SIZE = 50
         if hasattr(settings, 'DRF_LOGGER_QUEUE_MAX_SIZE'):
             self.DRF_LOGGER_QUEUE_MAX_SIZE = settings.DRF_LOGGER_QUEUE_MAX_SIZE
@@ -52,34 +58,52 @@ class InsertLogIntoDatabase(Thread):
         if self.custom_handler:
             self.custom_handler = self._import_custom_handler(self.custom_handler)
 
-        # Thread-safe FIFO queue for storing log data before bulk insertion
-        self._queue = Queue(maxsize=self.DRF_LOGGER_QUEUE_MAX_SIZE)
+        # Thread-safe FIFO queue for storing log data before bulk insertion.
+        # Keep this unbounded so request threads enqueue instead of blocking or
+        # flushing synchronously when the batch threshold is reached.
+        self._queue = Queue()
 
         # Register signal handlers for clean exit on termination signals
-        signal.signal(signal.SIGINT, self._clean_exit)
-        signal.signal(signal.SIGTERM, self._clean_exit)
+        try:
+            signal.signal(signal.SIGINT, self._clean_exit)
+            signal.signal(signal.SIGTERM, self._clean_exit)
+        except ValueError:
+            # signal.signal is only valid in the main thread.
+            pass
 
     def run(self) -> None:
         """
         Entry point for the thread. Starts the queue processing loop.
         """
+        if not self._atexit_registered:
+            atexit.register(self.shutdown)
+            self._atexit_registered = True
         self.start_queue_process()
 
     def put_log_data(self, data):
         """
         Adds a new log entry to the queue.
-        If the queue reaches its maximum size, triggers a bulk insert immediately.
+        If the queue reaches the batch threshold, wakes the background worker.
 
         Args:
             data (dict): Dictionary containing fields for APILogsModel.
         """
         if self.custom_handler:
             data = self.custom_handler(data)
-        self._queue.put(APILogsModel(**data))
+            if data is None:
+                self._increment_stat('_dropped_count')
+                return
 
-        # If queue is full, trigger immediate flush to the DB
+        try:
+            self._queue.put_nowait(APILogsModel(**data))
+        except Exception as e:
+            self._increment_stat('_dropped_count')
+            print('DRF API LOGGER EXCEPTION:', e)
+            return
+
+        # If queue reaches the batch threshold, wake the worker to flush.
         if self._queue.qsize() >= self.DRF_LOGGER_QUEUE_MAX_SIZE:
-            self._start_bulk_insertion()
+            self._flush_event.set()
 
     def start_queue_process(self):
         """
@@ -87,7 +111,8 @@ class InsertLogIntoDatabase(Thread):
         into the database in bulk, based on the defined interval.
         """
         while not self._stop_event.is_set():
-            time.sleep(self.DRF_LOGGER_INTERVAL)
+            self._flush_event.wait(self.DRF_LOGGER_INTERVAL)
+            self._flush_event.clear()
             self._start_bulk_insertion()
 
     def _start_bulk_insertion(self):
@@ -95,11 +120,17 @@ class InsertLogIntoDatabase(Thread):
         Pulls all available items from the queue and inserts them into the database
         using Django's bulk_create method for performance.
         """
-        bulk_item = []
-        while not self._queue.empty():
-            bulk_item.append(self._queue.get())
+        while True:
+            bulk_item = []
+            while len(bulk_item) < self.DRF_LOGGER_QUEUE_MAX_SIZE:
+                try:
+                    bulk_item.append(self._queue.get_nowait())
+                except Empty:
+                    break
 
-        if bulk_item:
+            if not bulk_item:
+                break
+
             self._insert_into_data_base(bulk_item)
 
     def _insert_into_data_base(self, bulk_item):
@@ -114,13 +145,16 @@ class InsertLogIntoDatabase(Thread):
         """
         try:
             APILogsModel.objects.using(self.DRF_API_LOGGER_DEFAULT_DATABASE).bulk_create(bulk_item)
+            self._increment_stat('_inserted_count', len(bulk_item))
         except OperationalError:
+            self._increment_stat('_failed_insert_count', len(bulk_item))
             raise Exception("""
             DRF API LOGGER EXCEPTION
             Model does not exist.
             Did you forget to migrate?
             """)
         except Exception as e:
+            self._increment_stat('_failed_insert_count', len(bulk_item))
             # Logs other unexpected exceptions to the console
             print('DRF API LOGGER EXCEPTION:', e)
 
@@ -141,6 +175,31 @@ class InsertLogIntoDatabase(Thread):
             signum: Signal number received.
             frame: Current stack frame (ignored here).
         """
+        self.shutdown()
+        raise SystemExit(0)
+
+    def shutdown(self):
+        """
+        Stop the worker loop and flush any queued logs.
+        """
         self._stop_event.set()
+        self._flush_event.set()
         self._start_bulk_insertion()
-        exit(0)
+
+    def get_status(self):
+        """
+        Return queue and insertion stats for health checks or diagnostics.
+        """
+        with self._stats_lock:
+            return {
+                'queue_backlog': self._queue.qsize(),
+                'batch_size': self.DRF_LOGGER_QUEUE_MAX_SIZE,
+                'interval': self.DRF_LOGGER_INTERVAL,
+                'dropped_count': self._dropped_count,
+                'inserted_count': self._inserted_count,
+                'failed_insert_count': self._failed_insert_count,
+            }
+
+    def _increment_stat(self, name, amount=1):
+        with self._stats_lock:
+            setattr(self, name, getattr(self, name) + amount)

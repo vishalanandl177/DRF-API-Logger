@@ -203,6 +203,40 @@ class TestUtilityFunctions(TestCase):
         self.assertIn('refresh=***FILTERED***', masked)
         self.assertIn('data=xyz', masked)
 
+    def test_mask_sensitive_header_keys_case_insensitively(self):
+        """Security headers must be masked regardless of header casing."""
+        data = {
+            'AUTHORIZATION': 'Bearer secret',
+            'Cookie': 'sessionid=secret',
+            'x-api-key': 'api-secret',
+            'nested': {
+                'Proxy-Authorization': 'Basic secret',
+                'safe': 'visible',
+            },
+            'safe': 'visible',
+        }
+
+        masked = mask_sensitive_data(data)
+
+        self.assertEqual(masked['AUTHORIZATION'], '***FILTERED***')
+        self.assertEqual(masked['Cookie'], '***FILTERED***')
+        self.assertEqual(masked['x-api-key'], '***FILTERED***')
+        self.assertEqual(masked['nested']['Proxy-Authorization'], '***FILTERED***')
+        self.assertEqual(masked['nested']['safe'], 'visible')
+        self.assertEqual(masked['safe'], 'visible')
+
+    def test_mask_api_parameters_case_insensitively(self):
+        """Query parameter masking should not depend on parameter casing."""
+        url = 'https://api.example.com?Token=abc&API_KEY=def&safe=ok'
+
+        masked = mask_sensitive_data(url, mask_api_parameters=True)
+
+        self.assertIn('Token=***FILTERED***', masked)
+        self.assertIn('API_KEY=***FILTERED***', masked)
+        self.assertIn('safe=ok', masked)
+        self.assertNotIn('Token=abc', masked)
+        self.assertNotIn('API_KEY=def', masked)
+
     def test_mask_sensitive_data_non_dict(self):
         """Test mask_sensitive_data with non-dict input"""
         # String without mask_api_parameters
