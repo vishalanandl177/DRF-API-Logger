@@ -99,3 +99,4 @@ if database_log_enabled():
             db_table = 'drf_api_logs'  # Custom DB table name for better control
             verbose_name = 'API Log'  # Human-readable name for Django admin
             verbose_name_plural = 'API Logs'  # Plural name for admin listing
+            ordering = ('-added_on', '-id')

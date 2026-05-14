@@ -191,7 +191,7 @@ class TestMiddlewareProfilingInstrumentation(TestCase):
         DRF_API_LOGGER_PROFILING_SQL_TRACKING=True
     )
     @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
-    @patch('drf_api_logger.middleware.api_logger_middleware.LOGGER_THREAD')
+    @patch('drf_api_logger.apps.LOGGER_THREAD')
     def test_profiling_data_serialized_for_db(self, mock_thread, mock_resolve):
         mock_resolve.return_value.namespace = None
         mock_resolve.return_value.url_name = 'test'

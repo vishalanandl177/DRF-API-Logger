@@ -18,9 +18,10 @@ DRF_API_LOGGER_EXCLUDE_KEYS = [
     'authorization',
 ]
 
-# --- Profiling: identify bottlenecks without a profiler ---
+# --- Profiling: identify bottlenecks without profiling every request ---
 DRF_API_LOGGER_ENABLE_PROFILING = True
 DRF_API_LOGGER_PROFILING_SQL_TRACKING = True
+DRF_API_LOGGER_PROFILING_SAMPLE_RATE = 0.1
 
 # --- Slow API detection ---
 DRF_API_LOGGER_SLOW_API_ABOVE = 500  # Flag APIs slower than 500ms
@@ -29,8 +30,11 @@ DRF_API_LOGGER_SLOW_API_ABOVE = 500  # Flag APIs slower than 500ms
 DRF_API_LOGGER_SKIP_URL_NAME = ['health-check', 'readiness', 'metrics']
 
 # --- Payload limits: prevent logging huge uploads ---
-DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = 10240    # 10 KB
-DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = 51200   # 50 KB
+DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = 32768    # Default: 32 KB
+DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = 65536   # Default: 64 KB
+
+# For regulated endpoints, set either limit to 0 to store truncation markers
+# instead of body content.
 
 # --- Request tracing ---
 DRF_API_LOGGER_ENABLE_TRACING = True

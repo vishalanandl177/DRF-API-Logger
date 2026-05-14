@@ -3,6 +3,24 @@ try:
     from opentelemetry.trace import StatusCode, SpanKind
     HAS_OTEL = True
 except ImportError:
+    class StatusCode:
+        OK = 'OK'
+        ERROR = 'ERROR'
+
+
+    class SpanKind:
+        SERVER = 'SERVER'
+
+
+    class _MissingTrace:
+        def get_tracer(self, *args, **kwargs):
+            return None
+
+        def get_current_span(self):
+            return None
+
+
+    trace = _MissingTrace()
     HAS_OTEL = False
 
 

@@ -36,6 +36,12 @@ class TestAPILoggerMiddleware(TestCase):
         self.assertIsNotNone(middleware)
         self.assertEqual(middleware.DRF_API_LOGGER_PATH_TYPE, 'ABSOLUTE')
 
+    def test_default_body_size_limits_are_bounded(self):
+        """Default payload logging should be bounded for production safety."""
+        middleware = APILoggerMiddleware(get_response=Mock())
+        self.assertEqual(middleware.DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE, 32768)
+        self.assertEqual(middleware.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE, 65536)
+
     @override_settings(DRF_API_LOGGER_DATABASE=True)
     def test_middleware_with_database_enabled(self):
         """Test middleware when database logging is enabled"""
@@ -243,3 +249,168 @@ class TestAPILoggerMiddleware(TestCase):
         request = self.factory.get('/api/test/')
         response = self.middleware(request)
         self.assertEqual(response.status_code, 200)
+
+    @override_settings(DRF_API_LOGGER_DATABASE=False, DRF_API_LOGGER_SIGNAL=True)
+    @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
+    def test_content_type_with_charset_is_logged(self, mock_resolve):
+        """application/json responses with a charset should still be logged."""
+        mock_resolve.return_value.namespace = None
+        mock_resolve.return_value.url_name = 'test'
+
+        def get_response(request):
+            return HttpResponse(
+                json.dumps({'ok': True}),
+                content_type='application/json; charset=utf-8',
+                status=200,
+            )
+
+        from drf_api_logger import API_LOGGER_SIGNAL
+        signal_data = []
+
+        def listener(**kwargs):
+            signal_data.append(kwargs)
+
+        API_LOGGER_SIGNAL.listen += listener
+        try:
+            middleware = APILoggerMiddleware(get_response=get_response)
+            request = self.factory.get('/api/test/')
+            middleware(request)
+
+            self.assertEqual(len(signal_data), 1)
+            self.assertEqual(signal_data[0]['response'], {'ok': True})
+        finally:
+            API_LOGGER_SIGNAL.listen -= listener
+
+    @override_settings(
+        DRF_API_LOGGER_DATABASE=False,
+        DRF_API_LOGGER_SIGNAL=True,
+        DRF_API_LOGGER_CONTENT_TYPES=['text/plain'],
+    )
+    @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
+    def test_custom_text_content_type_is_logged(self, mock_resolve):
+        """Configured non-JSON content types should be logged with parameters stripped."""
+        mock_resolve.return_value.namespace = None
+        mock_resolve.return_value.url_name = 'test'
+
+        def get_response(request):
+            return HttpResponse(
+                'plain response',
+                content_type='text/plain; charset=utf-8',
+                status=200,
+            )
+
+        from drf_api_logger import API_LOGGER_SIGNAL
+        signal_data = []
+
+        def listener(**kwargs):
+            signal_data.append(kwargs)
+
+        API_LOGGER_SIGNAL.listen += listener
+        try:
+            middleware = APILoggerMiddleware(get_response=get_response)
+            request = self.factory.get('/api/test/')
+            middleware(request)
+
+            self.assertEqual(len(signal_data), 1)
+            self.assertEqual(signal_data[0]['response'], 'plain response')
+        finally:
+            API_LOGGER_SIGNAL.listen -= listener
+
+    @override_settings(
+        DRF_API_LOGGER_DATABASE=False,
+        DRF_API_LOGGER_SIGNAL=True,
+        DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE=10,
+    )
+    @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
+    def test_request_body_limit_records_truncation_marker(self, mock_resolve):
+        """Oversized request bodies should not be read into logs as full payloads."""
+        mock_resolve.return_value.namespace = None
+        mock_resolve.return_value.url_name = 'test'
+
+        from drf_api_logger import API_LOGGER_SIGNAL
+        signal_data = []
+
+        def listener(**kwargs):
+            signal_data.append(kwargs)
+
+        API_LOGGER_SIGNAL.listen += listener
+        try:
+            middleware = APILoggerMiddleware(get_response=self.get_response)
+            request = self.factory.post(
+                '/api/test/',
+                data=json.dumps({'data': 'x' * 100}),
+                content_type='application/json',
+            )
+            middleware(request)
+
+            self.assertEqual(len(signal_data), 1)
+            self.assertIsInstance(signal_data[0]['body'], str)
+            self.assertIn('truncated', signal_data[0]['body'].lower())
+        finally:
+            API_LOGGER_SIGNAL.listen -= listener
+
+    @override_settings(
+        DRF_API_LOGGER_DATABASE=False,
+        DRF_API_LOGGER_SIGNAL=True,
+        DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE=10,
+    )
+    @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
+    def test_response_body_limit_records_truncation_marker(self, mock_resolve):
+        """Oversized response bodies should not be read into logs as full payloads."""
+        mock_resolve.return_value.namespace = None
+        mock_resolve.return_value.url_name = 'test'
+
+        def get_response(request):
+            return HttpResponse(
+                json.dumps({'data': 'x' * 100}),
+                content_type='application/json',
+                status=200,
+            )
+
+        from drf_api_logger import API_LOGGER_SIGNAL
+        signal_data = []
+
+        def listener(**kwargs):
+            signal_data.append(kwargs)
+
+        API_LOGGER_SIGNAL.listen += listener
+        try:
+            middleware = APILoggerMiddleware(get_response=get_response)
+            request = self.factory.get('/api/test/')
+            middleware(request)
+
+            self.assertEqual(len(signal_data), 1)
+            self.assertIsInstance(signal_data[0]['response'], str)
+            self.assertIn('truncated', signal_data[0]['response'].lower())
+        finally:
+            API_LOGGER_SIGNAL.listen -= listener
+
+    @override_settings(
+        DRF_API_LOGGER_DATABASE=False,
+        DRF_API_LOGGER_SIGNAL=True,
+        DRF_API_LOGGER_ENABLE_PROFILING=True,
+        DRF_API_LOGGER_PROFILING_SAMPLE_RATE=0.0,
+    )
+    @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
+    def test_profiling_sample_rate_zero_skips_profiling(self, mock_resolve):
+        """Profiling can be enabled without profiling every production request."""
+        mock_resolve.return_value.namespace = None
+        mock_resolve.return_value.url_name = 'test'
+
+        from drf_api_logger import API_LOGGER_SIGNAL
+        signal_data = []
+
+        def listener(**kwargs):
+            signal_data.append(kwargs)
+
+        API_LOGGER_SIGNAL.listen += listener
+        try:
+            middleware = APILoggerMiddleware(get_response=self.get_response)
+            request = self.factory.get('/api/test/')
+            middleware(request)
+
+            self.assertEqual(len(signal_data), 1)
+            self.assertNotIn('profiling_data', signal_data[0])
+            self.assertNotIn('sql_query_count', signal_data[0])
+        finally:
+            API_LOGGER_SIGNAL.listen -= listener

@@ -14,13 +14,20 @@ request and response bodies:
 - ``token``
 - ``access``
 - ``refresh``
+- ``authorization``
+- ``cookie``
+- ``set_cookie``
+- ``proxy_authorization``
+- ``x_api_key``
+- ``api_key``
 
 Masking works on:
 
 - Top-level dictionary keys
 - Nested dictionaries (recursive)
 - Lists of dictionaries
-- URL query parameters (e.g., ``?token=abc`` becomes ``?token=***FILTERED***``)
+- HTTP headers, case-insensitively
+- URL query parameters (e.g., ``?Token=abc`` becomes ``?Token=***FILTERED***``)
 
 Extend the default list:
 
@@ -37,7 +44,7 @@ What Is NOT Logged
 
 - Django Admin panel requests (always excluded)
 - Static and media file requests (always excluded)
-- Request/response bodies exceeding size limits (logged with empty body)
+- Request/response bodies exceeding size limits (logged with a truncation marker)
 
 No Sensitive Data in the Database
 ---------------------------------

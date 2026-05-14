@@ -60,7 +60,7 @@ class TestMiddlewareIntegration(TestCase):
         
         # Check that log data was queued
         mock_thread.put_log_data.assert_called_once()
-        call_args = mock_thread.put_log_data.call_args[0][0]
+        call_args = mock_thread.put_log_data.call_args.kwargs['data']
         
         self.assertIn('api', call_args)
         self.assertEqual(call_args['method'], 'POST')
@@ -301,18 +301,24 @@ class TestCompleteWorkflow(TestCase):
             self.assertIn('/api/test/', signal_data['api'])
             
             # Verify headers were captured
-            headers = json.loads(signal_data['headers'])
+            headers = signal_data['headers']
+            if isinstance(headers, str):
+                headers = json.loads(headers)
             self.assertIn('USER_AGENT', headers)
             self.assertEqual(headers['USER_AGENT'], 'TestAgent/1.0')
             
             # Verify request body (should be masked)
-            body = json.loads(signal_data['body'])
+            body = signal_data['body']
+            if isinstance(body, str):
+                body = json.loads(body)
             self.assertEqual(body['username'], 'testuser')
             self.assertEqual(body['password'], '***FILTERED***')
             self.assertEqual(body['email'], 'test@example.com')
             
             # Verify response
-            response_data = json.loads(signal_data['response'])
+            response_data = signal_data['response']
+            if isinstance(response_data, str):
+                response_data = json.loads(response_data)
             self.assertIn('method', response_data)
             self.assertEqual(response_data['method'], 'POST')
             

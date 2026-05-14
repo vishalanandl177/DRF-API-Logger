@@ -1,7 +1,7 @@
 DRF API Logger
 ==============
 
-.. image:: https://img.shields.io/badge/version-1.2.0-blue.svg
+.. image:: https://img.shields.io/badge/version-1.3.0-blue.svg
    :alt: Version
 .. image:: https://static.pepy.tech/personalized-badge/drf-api-logger?period=total&units=none&left_color=black&right_color=orange&left_text=Downloads%20Total
    :target: http://pepy.tech/project/drf-api-logger
@@ -10,8 +10,8 @@ DRF API Logger
    :target: https://opensource.org/licenses/Apache-2.0
    :alt: License
 
-The production standard for DRF API observability. Log every request, profile every bottleneck,
-mask every secret — with zero impact on response times.
+The production standard for DRF API observability. Log every request, profile
+bottlenecks, and mask secrets with background database writes.
 
 .. toctree::
    :maxdepth: 2
@@ -20,6 +20,7 @@ mask every secret — with zero impact on response times.
    performance_tuning
    scaling
    security
+   compliance
 
 Key Features
 ------------
@@ -27,7 +28,7 @@ Key Features
 - Request details: URL, method, headers, body, and client IP
 - Response information: status code, response body, and execution time
 - Automatic masking of sensitive data (passwords, tokens)
-- Non-blocking background processing with configurable queuing
+- Background processing with configurable batching
 - Database logging and/or real-time signal notifications
 - Built-in admin dashboard with charts and performance metrics
 - Per-request API profiling with auto-diagnosis of bottlenecks
@@ -170,6 +171,7 @@ without attaching a profiler:
    # settings.py
    DRF_API_LOGGER_ENABLE_PROFILING = True            # Default: False
    DRF_API_LOGGER_PROFILING_SQL_TRACKING = True       # Default: True
+   DRF_API_LOGGER_PROFILING_SAMPLE_RATE = 0.1         # Default: 1.0
 
 When enabled, each logged request includes a profiling breakdown showing:
 
@@ -251,10 +253,14 @@ Configuration Reference
      - bool
      - ``True``
      - Track SQL queries (sub-toggle of profiling)
+   * - ``DRF_API_LOGGER_PROFILING_SAMPLE_RATE``
+     - float
+     - ``1.0``
+     - Fraction of logged requests to profile
    * - ``DRF_LOGGER_QUEUE_MAX_SIZE``
      - int
      - ``50``
-     - Queue size before bulk DB insert
+     - Batch threshold before worker flush
    * - ``DRF_LOGGER_INTERVAL``
      - int
      - ``10``
@@ -277,23 +283,27 @@ Configuration Reference
      - Log only these status codes (empty = all)
    * - ``DRF_API_LOGGER_EXCLUDE_KEYS``
      - list
-     - ``['password', 'token', 'access', 'refresh']``
-     - Keys to mask with ``***FILTERED***``
+     - Sensitive defaults + custom keys
+     - Case-insensitive keys to mask with ``***FILTERED***``
    * - ``DRF_API_LOGGER_DEFAULT_DATABASE``
      - str
      - ``'default'``
      - Database alias for log storage
+   * - ``DRF_API_LOGGER_CUSTOM_HANDLER``
+     - str
+     - ``None``
+     - Dotted path to mutate or drop log data before queueing
    * - ``DRF_API_LOGGER_SLOW_API_ABOVE``
      - int
      - ``None``
      - Slow API threshold in milliseconds
    * - ``DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE``
      - int
-     - ``-1``
+     - ``32768``
      - Max request body size in bytes (-1 = no limit)
    * - ``DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE``
      - int
-     - ``-1``
+     - ``65536``
      - Max response body size in bytes (-1 = no limit)
    * - ``DRF_API_LOGGER_PATH_TYPE``
      - str
@@ -359,12 +369,16 @@ Security & Privacy
 Data Masking
 ------------
 
-Sensitive fields are automatically masked:
+Sensitive fields, credential headers, and matching query parameters are
+automatically masked case-insensitively:
 
 .. code-block:: python
 
    DRF_API_LOGGER_EXCLUDE_KEYS = ['password', 'token', 'access', 'refresh', 'secret']
    # Result: {"password": "***FILTERED***", "username": "john"}
+
+Defaults also cover common headers such as ``Authorization``, ``Cookie``,
+``Set-Cookie``, ``Proxy-Authorization``, and API key fields.
 
 
 Request Tracing
@@ -474,11 +488,11 @@ Performance & Production
    # Use a dedicated database for logs
    DRF_API_LOGGER_DEFAULT_DATABASE = 'logs_db'
 
-   # Optimize queue settings for high traffic
+   # Optimize background batch settings for high traffic
    DRF_LOGGER_QUEUE_MAX_SIZE = 100
    DRF_LOGGER_INTERVAL = 5
 
-- **Zero impact** on API response times (background processing)
-- **Minimal memory footprint** (configurable queue limits)
+- **No request-thread database writes** (background processing)
+- **Bounded request/response body capture by default**
 - **Efficient storage** (bulk database operations)
-- **Production-safe profiling** (``force_debug_cursor`` is thread-local, ``reset_queries`` prevents memory leaks)
+- **Production-safe sampled profiling** (``force_debug_cursor`` is restored, ``reset_queries`` prevents memory leaks)

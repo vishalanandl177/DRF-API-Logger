@@ -30,6 +30,26 @@ class TestMetricsRecording(TestCase):
         self.assertEqual(m['counters']['request_total'], 1)
         self.assertEqual(m['counters']['status_2xx'], 1)
         self.assertEqual(m['counters']['error_total'], 0)
+        self.assertEqual(m['scope']['type'], 'process')
+        self.assertTrue(m['scope']['worker_local'])
+        self.assertIn('queue_backlog', m['queue'])
+
+    @patch('drf_api_logger.apps.LOGGER_THREAD')
+    def test_queue_status_in_metrics(self, mock_thread):
+        mock_thread.get_status.return_value = {
+            'queue_backlog': 7,
+            'batch_size': 50,
+            'interval': 10,
+            'dropped_count': 2,
+            'inserted_count': 100,
+            'failed_insert_count': 1,
+        }
+
+        m = get_metrics()
+
+        self.assertEqual(m['queue']['queue_backlog'], 7)
+        self.assertEqual(m['queue']['dropped_count'], 2)
+        self.assertEqual(m['queue']['failed_insert_count'], 1)
 
     def test_record_multiple_requests(self):
         for _ in range(10):
@@ -124,6 +144,9 @@ class TestPrometheusFormat(TestCase):
         output = format_prometheus()
         self.assertIn('drf_api_logger_requests_total 0', output)
         self.assertIn('drf_api_logger_errors_total 0', output)
+        self.assertIn('drf_api_logger_process_info', output)
+        self.assertIn('drf_api_logger_queue_backlog', output)
+        self.assertIn('drf_api_logger_queue_dropped_total', output)
 
     def test_format_with_data(self):
         record_request({

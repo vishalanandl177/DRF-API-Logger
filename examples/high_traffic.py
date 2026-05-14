@@ -22,8 +22,8 @@ DATABASES = {
 }
 
 # --- Aggressive batching: fewer DB round-trips ---
-DRF_LOGGER_QUEUE_MAX_SIZE = 500  # Flush every 500 entries
-DRF_LOGGER_INTERVAL = 3         # Or every 3 seconds, whichever comes first
+DRF_LOGGER_QUEUE_MAX_SIZE = 500  # Wake worker around 500 queued entries
+DRF_LOGGER_INTERVAL = 3          # Or every 3 seconds, whichever comes first
 
 # --- Reduce payload size: don't store large bodies ---
 DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = 4096     # 4 KB max
@@ -36,9 +36,10 @@ DRF_API_LOGGER_SKIP_URL_NAME = [
 ]
 DRF_API_LOGGER_SKIP_NAMESPACE = ['monitoring', 'internal']
 
-# --- Profiling: enable selectively (adds ~0.1ms overhead per request) ---
+# --- Profiling: enable selectively ---
 DRF_API_LOGGER_ENABLE_PROFILING = True
 DRF_API_LOGGER_PROFILING_SQL_TRACKING = True
+DRF_API_LOGGER_PROFILING_SAMPLE_RATE = 0.05
 
 # --- Slow API detection ---
 DRF_API_LOGGER_SLOW_API_ABOVE = 200  # 200ms threshold

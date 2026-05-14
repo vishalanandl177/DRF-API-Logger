@@ -128,7 +128,10 @@ class _EventSlot:
         Fires the event by calling all subscribed targets with arguments.
         """
         for f in tuple(self.targets):  # Use a copy in case targets mutate during call
-            f(*a, **kw)
+            try:
+                f(*a, **kw)
+            except Exception as e:
+                print('DRF API LOGGER SIGNAL EXCEPTION:', e)
 
     def __iadd__(self, f):
         """

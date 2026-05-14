@@ -1,3 +1,4 @@
+import os
 from threading import Lock
 
 _lock = Lock()
@@ -18,6 +19,25 @@ _latency_max = 0.0
 _per_method = {}
 _per_endpoint = {}
 _per_error_type = {}
+
+
+def _get_queue_status():
+    status = {
+        'queue_backlog': 0,
+        'batch_size': 0,
+        'interval': 0,
+        'dropped_count': 0,
+        'inserted_count': 0,
+        'failed_insert_count': 0,
+    }
+    try:
+        from drf_api_logger import apps as logger_apps
+        logger_thread = getattr(logger_apps, 'LOGGER_THREAD', None)
+        if logger_thread and hasattr(logger_thread, 'get_status'):
+            status.update(logger_thread.get_status())
+    except Exception:
+        pass
+    return status
 
 
 def record_request(data):
@@ -74,6 +94,12 @@ def get_metrics():
         ) if _counters['request_total'] > 0 else 0
 
         return {
+            'scope': {
+                'type': 'process',
+                'process_id': os.getpid(),
+                'worker_local': True,
+            },
+            'queue': _get_queue_status(),
             'counters': dict(_counters),
             'latency': {
                 'avg_ms': round(avg_latency * 1000, 3),
@@ -93,6 +119,24 @@ def format_prometheus():
     lines.append('# HELP drf_api_logger_requests_total Total API requests')
     lines.append('# TYPE drf_api_logger_requests_total counter')
     lines.append('drf_api_logger_requests_total {}'.format(m['counters']['request_total']))
+
+    lines.append('# HELP drf_api_logger_process_info Process-local metrics identity')
+    lines.append('# TYPE drf_api_logger_process_info gauge')
+    lines.append('drf_api_logger_process_info{{pid="{}"}} 1'.format(m['scope']['process_id']))
+
+    queue = m['queue']
+    lines.append('# HELP drf_api_logger_queue_backlog Current process-local log queue backlog')
+    lines.append('# TYPE drf_api_logger_queue_backlog gauge')
+    lines.append('drf_api_logger_queue_backlog {}'.format(queue['queue_backlog']))
+    lines.append('# HELP drf_api_logger_queue_dropped_total Logs dropped before queueing in this process')
+    lines.append('# TYPE drf_api_logger_queue_dropped_total counter')
+    lines.append('drf_api_logger_queue_dropped_total {}'.format(queue['dropped_count']))
+    lines.append('# HELP drf_api_logger_db_inserted_total Logs inserted by this process')
+    lines.append('# TYPE drf_api_logger_db_inserted_total counter')
+    lines.append('drf_api_logger_db_inserted_total {}'.format(queue['inserted_count']))
+    lines.append('# HELP drf_api_logger_db_insert_failed_total Logs that failed database insertion in this process')
+    lines.append('# TYPE drf_api_logger_db_insert_failed_total counter')
+    lines.append('drf_api_logger_db_insert_failed_total {}'.format(queue['failed_insert_count']))
 
     lines.append('# HELP drf_api_logger_errors_total Total API errors (4xx + 5xx)')
     lines.append('# TYPE drf_api_logger_errors_total counter')

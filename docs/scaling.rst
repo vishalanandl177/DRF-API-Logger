@@ -32,8 +32,13 @@ manages its own queue and database connection, avoiding cross-process locking.
    gunicorn myapp.wsgi:application --workers 4
 
 With 4 workers and ``DRF_LOGGER_QUEUE_MAX_SIZE = 100``, you'll see up to 4
-concurrent bulk inserts of 100 rows each. A dedicated log database handles
-this without contention on your application database.
+worker-local queues that wake for bulk inserts around 100 rows each. A
+dedicated log database handles this without contention on your application
+database.
+
+Prometheus-style metrics are also process-local. Scrape each worker/process
+separately or use OpenTelemetry/APM export when you need aggregated
+service-level telemetry.
 
 Horizontal Scaling
 ------------------

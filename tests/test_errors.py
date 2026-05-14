@@ -142,7 +142,7 @@ class TestMiddlewareErrorCapture(TestCase):
 
     @override_settings(DRF_API_LOGGER_DATABASE=True)
     @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
-    @patch('drf_api_logger.middleware.api_logger_middleware.LOGGER_THREAD')
+    @patch('drf_api_logger.apps.LOGGER_THREAD')
     def test_error_type_excluded_from_db_payload(self, mock_thread, mock_resolve):
         mock_resolve.return_value.namespace = None
         mock_resolve.return_value.url_name = 'test'

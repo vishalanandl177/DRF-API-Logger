@@ -1,8 +1,8 @@
 Performance Tuning
 ==================
 
-DRF API Logger is designed for zero-impact logging, but high-traffic deployments
-benefit from tuning these parameters.
+DRF API Logger keeps database writes out of request threads, but high-traffic
+deployments benefit from tuning these parameters.
 
 Queue and Batching
 ------------------
@@ -12,7 +12,7 @@ Two settings control this behavior:
 
 .. code-block:: python
 
-   DRF_LOGGER_QUEUE_MAX_SIZE = 100   # Flush when queue reaches this size
+   DRF_LOGGER_QUEUE_MAX_SIZE = 100   # Wake worker when backlog reaches this size
    DRF_LOGGER_INTERVAL = 5           # Flush every N seconds regardless of queue size
 
 **Low traffic (<100 req/min):** defaults (50 / 10s) are fine.
@@ -20,6 +20,10 @@ Two settings control this behavior:
 **Medium traffic (100–1000 req/min):** increase queue size to 100–200, reduce interval to 5s.
 
 **High traffic (>1000 req/min):** set queue to 500+, interval to 3s. Use a dedicated database.
+
+``DRF_LOGGER_QUEUE_MAX_SIZE`` is a batch threshold, not a bounded request queue.
+Request threads enqueue and return; the background worker performs database
+flushes in batches.
 
 Dedicated Log Database
 ----------------------
@@ -45,10 +49,11 @@ Large request/response bodies consume storage and slow down bulk inserts:
 
 .. code-block:: python
 
-   DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = 10240    # 10 KB
-   DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = 51200   # 50 KB
+   DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = 32768    # Default: 32 KB
+   DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = 65536   # Default: 64 KB
 
-Requests/responses exceeding these limits are logged with an empty body field.
+Requests/responses exceeding these limits are logged with a truncation marker.
+Use ``-1`` only when you intentionally want unlimited body capture.
 
 Database Indexes
 ----------------
@@ -90,6 +95,13 @@ To disable SQL tracking while keeping timing profiling:
 
    DRF_API_LOGGER_ENABLE_PROFILING = True
    DRF_API_LOGGER_PROFILING_SQL_TRACKING = False
+
+To profile only a sample of logged requests:
+
+.. code-block:: python
+
+   DRF_API_LOGGER_ENABLE_PROFILING = True
+   DRF_API_LOGGER_PROFILING_SAMPLE_RATE = 0.1
 
 Skip Noisy Endpoints
 --------------------

@@ -22,11 +22,11 @@ DRF_API_LOGGER_DATABASE = True
 # --- Run migrations ---
 # python manage.py migrate
 
-# That's it. Every API request is now logged with:
+# That's it. Matching API requests are now logged with:
 # - URL, method, headers, body
 # - Response body and status code
 # - Execution time
 # - Client IP address
-# - Sensitive data automatically masked (password, token, access, refresh)
+# - Sensitive data automatically masked, including credentials in headers
 #
 # View logs in Django Admin at /admin/ under "DRF API Logger > API Logs".
