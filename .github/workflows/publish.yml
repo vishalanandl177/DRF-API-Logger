@@ -38,7 +38,28 @@ jobs:
         run: python -m django test tests --settings=tests.test_settings --verbosity=1
 
       - name: Build package
-        run: python -m build
+        run: python -m build --sdist --wheel
+
+      - name: Ensure wheel and source distribution exist
+        run: |
+          shopt -s nullglob
+          wheel_files=(dist/*.whl)
+          sdist_files=(dist/*.tar.gz)
+
+          if [ ${#wheel_files[@]} -eq 0 ]; then
+            echo "Wheel artifact is missing from dist/." >&2
+            exit 1
+          fi
+
+          if [ ${#sdist_files[@]} -eq 0 ]; then
+            echo "Source distribution artifact is missing from dist/." >&2
+            exit 1
+          fi
+
+          printf 'Wheel artifacts:\n'
+          printf '%s\n' "${wheel_files[@]}"
+          printf 'Source distribution artifacts:\n'
+          printf '%s\n' "${sdist_files[@]}"
 
       - name: Validate package metadata
         run: python -m twine check dist/*
@@ -58,7 +79,7 @@ jobs:
     environment: pypi
 
     permissions:
-      contents: read
+      contents: write
       id-token: write
 
     steps:
@@ -70,11 +91,21 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install metadata tooling
+        run: python -m pip install --upgrade setuptools
+
       - name: Read package metadata
         id: package
         run: |
-          echo "name=$(python setup.py --name)" >> "$GITHUB_OUTPUT"
-          echo "version=$(python setup.py --version)" >> "$GITHUB_OUTPUT"
+          package_name="$(python setup.py --name)"
+          package_version="$(python setup.py --version)"
+          if [ -z "$package_name" ] || [ -z "$package_version" ]; then
+            echo "Could not read package name/version from setup.py" >&2
+            exit 1
+          fi
+          echo "name=$package_name" >> "$GITHUB_OUTPUT"
+          echo "version=$package_version" >> "$GITHUB_OUTPUT"
+          echo "Package: $package_name $package_version"
 
       - name: Ensure version is not already on PyPI
         env:
@@ -89,7 +120,10 @@ jobs:
 
           package_name = os.environ["PACKAGE_NAME"].replace("_", "-")
           package_version = os.environ["PACKAGE_VERSION"]
+          if not package_name or not package_version:
+              raise SystemExit("PACKAGE_NAME and PACKAGE_VERSION must not be empty.")
           url = f"https://pypi.org/pypi/{package_name}/{package_version}/json"
+          print(f"Checking {url}")
 
           try:
               urllib.request.urlopen(url, timeout=15)
@@ -111,5 +145,37 @@ jobs:
           name: package-dist
           path: dist
 
+      - name: Ensure downloaded wheel and source distribution exist
+        run: |
+          shopt -s nullglob
+          wheel_files=(dist/*.whl)
+          sdist_files=(dist/*.tar.gz)
+
+          if [ ${#wheel_files[@]} -eq 0 ]; then
+            echo "Wheel artifact is missing from downloaded dist/." >&2
+            exit 1
+          fi
+
+          if [ ${#sdist_files[@]} -eq 0 ]; then
+            echo "Source distribution artifact is missing from downloaded dist/." >&2
+            exit 1
+          fi
+
+          printf 'Publishing wheel artifacts:\n'
+          printf '%s\n' "${wheel_files[@]}"
+          printf 'Publishing source distribution artifacts:\n'
+          printf '%s\n' "${sdist_files[@]}"
+
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE_NAME: ${{ steps.package.outputs.name }}
+          PACKAGE_VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          gh release create "$PACKAGE_VERSION" dist/* \
+            --target "$GITHUB_SHA" \
+            --title "$PACKAGE_NAME $PACKAGE_VERSION" \
+            --generate-notes
