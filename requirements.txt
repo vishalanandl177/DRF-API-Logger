@@ -6,7 +6,7 @@ chardet==5.2.0
 charset-normalizer==3.4.3
 colorama==0.4.6
 commonmark==0.9.1
-cryptography==45.0.6
+cryptography==46.0.7
 defusedxml==0.7.1
 diff-match-patch==20241021
 Django==5.2.5
@@ -44,7 +44,7 @@ rfc3986==2.0.0
 rich==14.1.0
 SecretStorage==3.3.3
 six==1.17.0
-sqlparse==0.5.3
+sqlparse==0.5.4
 tablib==3.8.0
 tqdm==4.67.1
 twine==6.1.0
