@@ -59,7 +59,7 @@ class TestBackwardCompatMiddleware(TestCase):
         DRF_API_LOGGER_ENABLE_PROFILING=False
     )
     @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
-    @patch('drf_api_logger.middleware.api_logger_middleware.LOGGER_THREAD')
+    @patch('drf_api_logger.apps.LOGGER_THREAD')
     def test_db_payload_unchanged(self, mock_thread, mock_resolve):
         mock_resolve.return_value.namespace = None
         mock_resolve.return_value.url_name = 'test'

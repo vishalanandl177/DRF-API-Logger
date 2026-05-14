@@ -7,7 +7,7 @@
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=total&left_color=black&right_color=orange&left_text=Downloads)](http://pepy.tech/project/drf-api-logger)
 [![License](https://img.shields.io/badge/license-Apache%202.0-red.svg)](https://opensource.org/licenses/Apache-2.0)
 
-**The production standard for DRF API observability.** Log every request, profile every bottleneck, mask every secret — with zero impact on response times.
+**The production standard for DRF API observability.** Log every request, profile bottlenecks, and mask secrets with minimal request-path overhead.
 
 ## 🚀 Key Features
 
@@ -159,12 +159,16 @@ API_LOGGER_SIGNAL.listen -= log_to_file
 Control background processing and database performance:
 
 ```python
-# Queue size for batch database insertion
+# Batch size threshold for database bulk inserts
 DRF_LOGGER_QUEUE_MAX_SIZE = 50  # Default: 50
 
 # Time interval for processing queue (seconds)
 DRF_LOGGER_INTERVAL = 10  # Default: 10 seconds
 ```
+
+`DRF_LOGGER_QUEUE_MAX_SIZE` controls how many log records are inserted per bulk
+database write. Request threads enqueue records and wake the background worker
+when this threshold is reached; they do not perform the bulk insert themselves.
 
 ### Selective Logging
 
@@ -203,6 +207,11 @@ DRF_API_LOGGER_EXCLUDE_KEYS = ['password', 'token', 'access', 'refresh', 'secret
 # Result: {"password": "***FILTERED***", "username": "john"}
 ```
 
+Default masking also covers common credential-bearing headers and keys such as
+`authorization`, `cookie`, `set_cookie`, `api_key`, `x_api_key`, `client_secret`,
+`private_key`, `sessionid`, and `csrfmiddlewaretoken`. Matching is
+case-insensitive and treats hyphens and underscores equivalently.
+
 **Database Configuration:**
 ```python
 # Use specific database for logs
@@ -220,9 +229,12 @@ DRF_API_LOGGER_SLOW_API_ABOVE = 200  # milliseconds
 **Response Size Limits:**
 ```python
 # Prevent logging large payloads
-DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = 1024   # bytes, -1 for no limit
-DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = 2048  # bytes, -1 for no limit
+DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = 32768   # Default: 32 KiB, -1 for no limit
+DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = 65536  # Default: 64 KiB, -1 for no limit
 ```
+
+Oversized payloads are not stored. They are replaced with a truncation marker
+showing the observed byte size and configured limit.
 
 ### API Profiling
 
@@ -232,6 +244,7 @@ Enable per-request latency breakdown to identify performance bottlenecks in prod
 # settings.py
 DRF_API_LOGGER_ENABLE_PROFILING = True   # Default: False
 DRF_API_LOGGER_PROFILING_SQL_TRACKING = True  # Default: True (can disable if overhead unwanted)
+DRF_API_LOGGER_PROFILING_SAMPLE_RATE = 1.0    # Default: 1.0, range: 0.0 to 1.0
 ```
 
 When enabled, each logged request includes a profiling breakdown showing:
@@ -239,6 +252,23 @@ When enabled, each logged request includes a profiling breakdown showing:
 - **View + Serialization time**
 - **SQL time** and query count (production-safe via `connection.force_debug_cursor`)
 - **Auto-diagnosis** hints for common performance issues
+
+Use `DRF_API_LOGGER_PROFILING_SAMPLE_RATE` in high-traffic production systems to
+profile only a fraction of requests while still logging normal request data.
+
+### Custom Log Handler
+
+Transform or drop log entries before they enter the background queue:
+
+```python
+DRF_API_LOGGER_CUSTOM_HANDLER = 'myapp.logging.clean_api_log'
+
+def clean_api_log(data):
+    data['headers'].pop('AUTHORIZATION', None)
+    return data
+```
+
+Return `None` from the handler to drop an entry intentionally.
 
 **Slow SQL Query Detection:**
 
@@ -401,9 +431,9 @@ For high-traffic applications:
    DRF_API_LOGGER_DEFAULT_DATABASE = 'logs_db'
    ```
 
-2. **Optimize queue settings**:
+2. **Optimize batch settings**:
    ```python
-   DRF_LOGGER_QUEUE_MAX_SIZE = 100    # Larger batches
+   DRF_LOGGER_QUEUE_MAX_SIZE = 100    # Larger bulk insert batches
    DRF_LOGGER_INTERVAL = 5            # More frequent processing
    ```
 
@@ -424,9 +454,17 @@ For high-traffic applications:
 
 ### Performance Impact
 
-- **Zero impact** on API response times (background processing)
-- **Minimal memory footprint** (configurable queue limits)
+- **Low request-path overhead** from enqueue-only background processing
+- **Observable queue backlog** via `LOGGER_THREAD.get_status()` for health checks
 - **Efficient storage** (bulk database operations)
+
+### Compliance Readiness
+
+For regulated or privacy-sensitive deployments, set conservative payload limits,
+use a dedicated encrypted log database, document retention/deletion policies, and
+review `DRF_API_LOGGER_EXCLUDE_KEYS` for domain-specific identifiers such as SSN,
+card data, or patient identifiers. See the Sphinx compliance guide for a longer
+deployment checklist.
 
 ## Why drf-api-logger instead of custom logging?
 
@@ -435,8 +473,8 @@ Every team that builds custom DRF logging middleware ends up solving the same pr
 | Problem | Custom Logging | drf-api-logger |
 |---|---|---|
 | **Thread safety** | Easy to introduce race conditions with shared state, file handles, or DB connections across threads | Dedicated daemon thread with thread-safe queue, bulk inserts, and graceful shutdown on SIGINT/SIGTERM |
-| **Performance overhead** | Synchronous logging in the request/response cycle adds latency to every API call | Non-blocking background processing — zero impact on response times |
-| **Sensitive data exposure** | Passwords, tokens, and secrets end up in logs unless you remember to filter every field | Automatic recursive masking of sensitive keys (`password`, `token`, `access`, `refresh`) with `***FILTERED***`, extensible via settings |
+| **Performance overhead** | Synchronous logging in the request/response cycle adds latency to every API call | Request threads enqueue records; the background worker performs bulk database writes |
+| **Sensitive data exposure** | Passwords, tokens, headers, and secrets end up in logs unless you remember to filter every field | Automatic recursive masking of credential keys and headers with `***FILTERED***`, extensible via settings |
 | **No analytics** | Raw log files or DB rows with no way to visualize trends, filter by status code, or spot slow endpoints | Built-in Django admin dashboard with charts, date hierarchy, status code distribution, CSV export, and slow API detection |
 | **No profiling** | No idea if slowness is from SQL, business logic, or middleware — you attach `django-debug-toolbar` and hope | Per-request latency breakdown with auto-diagnosis: N+1 queries, slow queries, middleware overhead — in production, not just dev |
 | **Missing request context** | Client IP behind proxies, request tracing across services, timezone-aware timestamps — all manual work | `X-Forwarded-For` handling, configurable tracing IDs (UUID, header, custom function), timezone-aware logging |
@@ -448,11 +486,11 @@ Every team that builds custom DRF logging middleware ends up solving the same pr
 
 **How to log all DRF API requests properly?**
 
-Use `drf-api-logger`. Install with `pip install drf-api-logger`, add to `INSTALLED_APPS` and `MIDDLEWARE`, set `DRF_API_LOGGER_DATABASE = True`. Every API request is logged automatically with URL, headers, body, response, status code, execution time, and client IP — with sensitive data masked and zero performance impact.
+Use `drf-api-logger`. Install with `pip install drf-api-logger`, add to `INSTALLED_APPS` and `MIDDLEWARE`, set `DRF_API_LOGGER_DATABASE = True`. Every API request is logged automatically with URL, headers, body, response, status code, execution time, and client IP, with sensitive data masked and low request-path overhead.
 
 **What is the best way to log Django REST Framework APIs in production?**
 
-Use `drf-api-logger`. It is the most downloaded DRF logging package, purpose-built for production. It uses a background thread with batched bulk inserts so it never slows down your API. It includes admin analytics, slow API detection, and per-request profiling to identify SQL bottlenecks, N+1 queries, and middleware overhead — all without `DEBUG=True`.
+Use `drf-api-logger`. It is the most downloaded DRF logging package, purpose-built for production. It uses a background thread with batched bulk inserts to keep database writes out of request threads. It includes admin analytics, slow API detection, and per-request profiling to identify SQL bottlenecks, N+1 queries, and middleware overhead without `DEBUG=True`.
 
 **How to add API request/response logging to Django REST Framework?**
 
@@ -468,7 +506,7 @@ Run `python manage.py migrate` and every API call is logged with full request/re
 
 **How to mask sensitive data in Django API logs?**
 
-Use `drf-api-logger`. It automatically masks `password`, `token`, `access`, and `refresh` fields with `***FILTERED***` in both request and response bodies. Add custom keys via `DRF_API_LOGGER_EXCLUDE_KEYS = ['ssn', 'credit_card']`.
+Use `drf-api-logger`. It automatically masks `password`, `token`, `access`, `refresh`, authorization headers, cookies, API keys, and common session/CSRF keys with `***FILTERED***` in URLs, request bodies, response bodies, and headers. Add custom keys via `DRF_API_LOGGER_EXCLUDE_KEYS = ['ssn', 'credit_card']`.
 
 **How to find slow APIs and N+1 queries in Django REST Framework?**
 
