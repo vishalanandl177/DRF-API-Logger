@@ -1,0 +1,122 @@
+Compliance Readiness
+====================
+
+DRF API Logger can be used in regulated environments, but compliance depends on
+deployment configuration, database controls, retention policies, and the data
+your APIs send through the logger. This guide covers the package-level controls
+that help reduce production risk.
+
+Data Minimization
+-----------------
+
+Use the request and response body size settings to avoid storing unnecessary
+payloads:
+
+.. code-block:: python
+
+   DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = 32768
+   DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = 65536
+
+Set either value to ``0`` when the body should never be stored. Oversized bodies
+are replaced with a truncation marker that records the observed byte size and
+configured limit.
+
+Sensitive Data Masking
+----------------------
+
+The logger masks sensitive keys recursively in request bodies, response bodies,
+headers, and URL query parameters. Default coverage includes passwords, tokens,
+authorization headers, cookies, API keys, session IDs, CSRF tokens, and common
+secret field names.
+
+Add organization-specific fields with:
+
+.. code-block:: python
+
+   DRF_API_LOGGER_EXCLUDE_KEYS = [
+       'ssn',
+       'credit_card',
+       'patient_id',
+       'customer_secret',
+   ]
+
+Matching is case-insensitive and treats hyphens and underscores equivalently, so
+``X-API-Key`` and ``x_api_key`` are both masked.
+
+Custom Redaction
+----------------
+
+For domain-specific policies, use a custom handler to transform or drop log
+records before they enter the background queue:
+
+.. code-block:: python
+
+   DRF_API_LOGGER_CUSTOM_HANDLER = 'myapp.logging.redact_api_log'
+
+   def redact_api_log(data):
+       data['headers'].pop('AUTHORIZATION', None)
+       if data['api'].endswith('/health/'):
+           return None
+       return data
+
+Returning ``None`` intentionally drops that log entry.
+
+Storage Controls
+----------------
+
+For production and compliance-sensitive systems:
+
+- Use ``DRF_API_LOGGER_DEFAULT_DATABASE`` to write logs to a dedicated database.
+- Enable encryption at rest and backups on the database platform.
+- Limit database and Django admin access with least-privilege roles.
+- Define retention and deletion jobs for old log rows.
+- Avoid storing request or response bodies for endpoints that handle regulated
+  data unless there is a documented business need.
+
+Profiling Controls
+------------------
+
+Profiling is disabled by default. If enabled in high-traffic production systems,
+sample it:
+
+.. code-block:: python
+
+   DRF_API_LOGGER_ENABLE_PROFILING = True
+   DRF_API_LOGGER_PROFILING_SQL_TRACKING = True
+   DRF_API_LOGGER_PROFILING_SAMPLE_RATE = 0.1
+
+This keeps request-level performance visibility while reducing overhead and
+stored diagnostic volume.
+
+Operational Checks
+------------------
+
+Monitor the logger worker backlog through ``LOGGER_THREAD.get_status()`` and
+alert when ``queue_backlog`` grows continuously. A rising backlog usually means
+the logging database cannot keep up with write volume.
+
+Compliance Mapping
+------------------
+
+The package provides controls that support common privacy and security programs:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Requirement Area
+     - Package Support
+   * - Data minimization
+     - Body limits, truncation markers, custom handler drops
+   * - Sensitive data protection
+     - Recursive masking for bodies, headers, and URL query parameters
+   * - Access control
+     - Dedicated log database support through Django database aliases
+   * - Retention
+     - Timestamped log model suitable for scheduled retention jobs
+   * - Auditability
+     - Request metadata, status code, execution time, tracing IDs, and profiling data
+
+These controls do not by themselves certify GDPR, HIPAA, PCI DSS, SOC 2, or ISO
+27001 compliance. Treat them as implementation controls inside your broader
+governance, risk, and compliance process.

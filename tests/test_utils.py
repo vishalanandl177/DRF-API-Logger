@@ -120,6 +120,8 @@ class TestUtilityFunctions(TestCase):
             'token': 'abc123',
             'access': 'access_token',
             'refresh': 'refresh_token',
+            'Authorization': 'Bearer secret',
+            'X-API-Key': 'key123',
             'email': 'john@example.com'
         }
         
@@ -131,6 +133,8 @@ class TestUtilityFunctions(TestCase):
         self.assertEqual(masked['token'], '***FILTERED***')
         self.assertEqual(masked['access'], '***FILTERED***')
         self.assertEqual(masked['refresh'], '***FILTERED***')
+        self.assertEqual(masked['Authorization'], '***FILTERED***')
+        self.assertEqual(masked['X-API-Key'], '***FILTERED***')
 
     def test_mask_sensitive_data_nested_dict(self):
         """Test masking sensitive data in nested dictionary"""
@@ -184,12 +188,13 @@ class TestUtilityFunctions(TestCase):
 
     def test_mask_sensitive_data_string_url(self):
         """Test masking sensitive data in URL string"""
-        url = 'https://api.example.com/auth?token=abc123&user=john&password=secret'
+        url = 'https://api.example.com/auth?Token=abc123&user=john&password=secret&X-API-Key=key'
         
         masked = mask_sensitive_data(url, mask_api_parameters=True)
         
-        self.assertIn('token=***FILTERED***', masked)
+        self.assertIn('Token=***FILTERED***', masked)
         self.assertIn('password=***FILTERED***', masked)
+        self.assertIn('X-API-Key=***FILTERED***', masked)
         self.assertIn('user=john', masked)
 
     def test_mask_sensitive_data_string_multiple_params(self):
@@ -217,6 +222,17 @@ class TestUtilityFunctions(TestCase):
         result = mask_sensitive_data(None)
         self.assertIsNone(result)
 
+    def test_mask_sensitive_data_does_not_mutate_input(self):
+        """Test masking returns a sanitized copy instead of mutating input"""
+        data = {'password': 'secret', 'nested': {'token': 'abc'}}
+
+        masked = mask_sensitive_data(data)
+
+        self.assertEqual(data['password'], 'secret')
+        self.assertEqual(data['nested']['token'], 'abc')
+        self.assertEqual(masked['password'], '***FILTERED***')
+        self.assertEqual(masked['nested']['token'], '***FILTERED***')
+
     @override_settings(DRF_API_LOGGER_EXCLUDE_KEYS=['custom_secret', 'api_key'])
     def test_custom_sensitive_keys(self):
         """Test custom sensitive keys from settings"""
@@ -241,6 +257,16 @@ class TestUtilityFunctions(TestCase):
 
     def test_sensitive_keys_default(self):
         """Test default sensitive keys"""
-        expected_keys = ['password', 'token', 'access', 'refresh']
+        expected_keys = [
+            'password',
+            'token',
+            'access',
+            'refresh',
+            'authorization',
+            'cookie',
+            'api_key',
+            'sessionid',
+            'csrfmiddlewaretoken',
+        ]
         for key in expected_keys:
             self.assertIn(key, SENSITIVE_KEYS)

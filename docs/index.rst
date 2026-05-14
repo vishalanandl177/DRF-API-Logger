@@ -11,7 +11,13 @@ DRF API Logger
    :alt: License
 
 A comprehensive API logging solution for Django Rest Framework projects that captures detailed
-request/response information with zero performance impact.
+request/response information with low request-path overhead.
+
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+
+   compliance
 
 Key Features
 ------------
@@ -162,6 +168,7 @@ without attaching a profiler:
    # settings.py
    DRF_API_LOGGER_ENABLE_PROFILING = True            # Default: False
    DRF_API_LOGGER_PROFILING_SQL_TRACKING = True       # Default: True
+   DRF_API_LOGGER_PROFILING_SAMPLE_RATE = 1.0         # Default: 1.0
 
 When enabled, each logged request includes a profiling breakdown showing:
 
@@ -169,6 +176,9 @@ When enabled, each logged request includes a profiling breakdown showing:
 - **View + Serialization time**
 - **SQL time** and query count (production-safe via ``connection.force_debug_cursor``)
 - **Auto-diagnosis** hints for common performance issues
+
+For high-traffic systems, reduce ``DRF_API_LOGGER_PROFILING_SAMPLE_RATE`` to
+profile only a fraction of logged requests.
 
 Slow SQL Query Detection
 ------------------------
@@ -243,10 +253,14 @@ Configuration Reference
      - bool
      - ``True``
      - Track SQL queries (sub-toggle of profiling)
+   * - ``DRF_API_LOGGER_PROFILING_SAMPLE_RATE``
+     - float
+     - ``1.0``
+     - Fraction of logged requests that include profiling data
    * - ``DRF_LOGGER_QUEUE_MAX_SIZE``
      - int
      - ``50``
-     - Queue size before bulk DB insert
+     - Bulk insert batch size threshold
    * - ``DRF_LOGGER_INTERVAL``
      - int
      - ``10``
@@ -267,9 +281,13 @@ Configuration Reference
      - list
      - ``[]``
      - Log only these status codes (empty = all)
+   * - ``DRF_API_LOGGER_CONTENT_TYPES``
+     - list
+     - JSON, gzip, binary, calendar
+     - Response content types eligible for body logging
    * - ``DRF_API_LOGGER_EXCLUDE_KEYS``
      - list
-     - ``['password', 'token', 'access', 'refresh']``
+     - ``['password', 'token', 'access', 'refresh']`` plus common credential headers
      - Keys to mask with ``***FILTERED***``
    * - ``DRF_API_LOGGER_DEFAULT_DATABASE``
      - str
@@ -281,12 +299,12 @@ Configuration Reference
      - Slow API threshold in milliseconds
    * - ``DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE``
      - int
-     - ``-1``
-     - Max request body size in bytes (-1 = no limit)
+     - ``32768``
+     - Max request body size in bytes (``-1`` = no limit)
    * - ``DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE``
      - int
-     - ``-1``
-     - Max response body size in bytes (-1 = no limit)
+     - ``65536``
+     - Max response body size in bytes (``-1`` = no limit)
    * - ``DRF_API_LOGGER_PATH_TYPE``
      - str
      - ``'ABSOLUTE'``
@@ -307,6 +325,10 @@ Configuration Reference
      - str
      - ``None``
      - Header name to read tracing ID from
+   * - ``DRF_API_LOGGER_CUSTOM_HANDLER``
+     - str
+     - ``None``
+     - Dotted-path function to transform or drop log entries before queueing
 
 .. note::
 
@@ -357,6 +379,12 @@ Sensitive fields are automatically masked:
 
    DRF_API_LOGGER_EXCLUDE_KEYS = ['password', 'token', 'access', 'refresh', 'secret']
    # Result: {"password": "***FILTERED***", "username": "john"}
+
+Default masking also covers common credential-bearing headers and keys including
+``authorization``, ``cookie``, ``set_cookie``, ``api_key``, ``x_api_key``,
+``client_secret``, ``private_key``, ``sessionid``, and
+``csrfmiddlewaretoken``. Matching is case-insensitive and treats hyphens and
+underscores equivalently.
 
 
 Request Tracing
@@ -466,11 +494,11 @@ Performance & Production
    # Use a dedicated database for logs
    DRF_API_LOGGER_DEFAULT_DATABASE = 'logs_db'
 
-   # Optimize queue settings for high traffic
+   # Optimize batch settings for high traffic
    DRF_LOGGER_QUEUE_MAX_SIZE = 100
    DRF_LOGGER_INTERVAL = 5
 
-- **Zero impact** on API response times (background processing)
-- **Minimal memory footprint** (configurable queue limits)
+- **Low request-path overhead** from enqueue-only background processing
+- **Observable queue backlog** via ``LOGGER_THREAD.get_status()`` for health checks
 - **Efficient storage** (bulk database operations)
 - **Production-safe profiling** (``force_debug_cursor`` is thread-local, ``reset_queries`` prevents memory leaks)

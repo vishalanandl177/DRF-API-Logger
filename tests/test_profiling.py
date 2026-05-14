@@ -31,6 +31,7 @@ class TestMiddlewareProfilingInit(TestCase):
         middleware = APILoggerMiddleware(get_response=Mock())
         self.assertFalse(middleware.DRF_API_LOGGER_ENABLE_PROFILING)
         self.assertTrue(middleware.DRF_API_LOGGER_PROFILING_SQL_TRACKING)
+        self.assertEqual(middleware.DRF_API_LOGGER_PROFILING_SAMPLE_RATE, 1.0)
 
     @override_settings(DRF_API_LOGGER_ENABLE_PROFILING=True)
     def test_profiling_enabled_from_settings(self):
@@ -45,6 +46,22 @@ class TestMiddlewareProfilingInit(TestCase):
         middleware = APILoggerMiddleware(get_response=Mock())
         self.assertTrue(middleware.DRF_API_LOGGER_ENABLE_PROFILING)
         self.assertFalse(middleware.DRF_API_LOGGER_PROFILING_SQL_TRACKING)
+
+    @override_settings(
+        DRF_API_LOGGER_ENABLE_PROFILING=True,
+        DRF_API_LOGGER_PROFILING_SAMPLE_RATE=2
+    )
+    def test_sample_rate_clamped_to_one(self):
+        middleware = APILoggerMiddleware(get_response=Mock())
+        self.assertEqual(middleware.DRF_API_LOGGER_PROFILING_SAMPLE_RATE, 1.0)
+
+    @override_settings(
+        DRF_API_LOGGER_ENABLE_PROFILING=True,
+        DRF_API_LOGGER_PROFILING_SAMPLE_RATE=-1
+    )
+    def test_sample_rate_clamped_to_zero(self):
+        middleware = APILoggerMiddleware(get_response=Mock())
+        self.assertEqual(middleware.DRF_API_LOGGER_PROFILING_SAMPLE_RATE, 0.0)
 
 
 class TestMiddlewareProfilingInstrumentation(TestCase):
@@ -191,7 +208,7 @@ class TestMiddlewareProfilingInstrumentation(TestCase):
         DRF_API_LOGGER_PROFILING_SQL_TRACKING=True
     )
     @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
-    @patch('drf_api_logger.middleware.api_logger_middleware.LOGGER_THREAD')
+    @patch('drf_api_logger.apps.LOGGER_THREAD')
     def test_profiling_data_serialized_for_db(self, mock_thread, mock_resolve):
         mock_resolve.return_value.namespace = None
         mock_resolve.return_value.url_name = 'test'

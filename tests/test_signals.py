@@ -8,7 +8,7 @@ from django.test import TestCase
 from django.test.utils import override_settings
 from django.utils import timezone
 
-from drf_api_logger.events import EventTypes
+import drf_api_logger as logger_module
 from drf_api_logger import API_LOGGER_SIGNAL
 
 
@@ -18,7 +18,7 @@ class TestSignalSystem(TestCase):
     def setUp(self):
         """Set up test fixtures"""
         # Clear any existing listeners
-        API_LOGGER_SIGNAL.listen = EventTypes()
+        API_LOGGER_SIGNAL.__dict__.pop('listen', None)
         self.signal_data = []
         
     def signal_listener(self, **kwargs):
@@ -30,7 +30,7 @@ class TestSignalSystem(TestCase):
         API_LOGGER_SIGNAL.listen += self.signal_listener
         
         # Check that listener is registered
-        self.assertEqual(len(API_LOGGER_SIGNAL.listen._listeners), 1)
+        self.assertEqual(len(API_LOGGER_SIGNAL.listen), 1)
         
     def test_signal_listener_unregistration(self):
         """Test unregistering a signal listener"""
@@ -38,7 +38,7 @@ class TestSignalSystem(TestCase):
         API_LOGGER_SIGNAL.listen -= self.signal_listener
         
         # Check that listener is removed
-        self.assertEqual(len(API_LOGGER_SIGNAL.listen._listeners), 0)
+        self.assertEqual(len(API_LOGGER_SIGNAL.listen), 0)
         
     def test_multiple_signal_listeners(self):
         """Test multiple signal listeners"""
@@ -52,7 +52,7 @@ class TestSignalSystem(TestCase):
         
         # Trigger signal
         test_data = {'test': 'data'}
-        API_LOGGER_SIGNAL.listen(test_data)
+        API_LOGGER_SIGNAL.listen(**test_data)
         
         # Both listeners should receive data
         self.assertEqual(len(self.signal_data), 1)
@@ -77,7 +77,7 @@ class TestSignalSystem(TestCase):
             'tracing_id': 'test-trace-123'
         }
         
-        API_LOGGER_SIGNAL.listen(api_data)
+        API_LOGGER_SIGNAL.listen(**api_data)
         
         self.assertEqual(len(self.signal_data), 1)
         received_data = self.signal_data[0]
@@ -96,7 +96,7 @@ class TestSignalSystem(TestCase):
         
         # This should not raise an exception
         test_data = {'test': 'data'}
-        API_LOGGER_SIGNAL.listen(test_data)
+        API_LOGGER_SIGNAL.listen(**test_data)
         
         # Working listener should still receive data
         self.assertEqual(len(self.signal_data), 1)
@@ -146,31 +146,31 @@ class TestBackgroundThread(TestCase):
 
     @patch('drf_api_logger.insert_log_into_database.APILogsModel')
     def test_bulk_insertion_trigger(self, mock_model):
-        """Test that bulk insertion triggers when queue is full"""
+        """Test that the worker is woken when the batch threshold is reached"""
         from drf_api_logger.insert_log_into_database import InsertLogIntoDatabase
-        
-        with patch.object(InsertLogIntoDatabase, 'DRF_LOGGER_QUEUE_MAX_SIZE', 2):
+
+        with override_settings(DRF_LOGGER_QUEUE_MAX_SIZE=2):
             thread = InsertLogIntoDatabase()
-            
-            with patch.object(thread, '_start_bulk_insertion') as mock_bulk:
-                log_data = {
-                    'api': '/api/test/',
-                    'method': 'GET',
-                    'status_code': 200,
-                    'headers': '{}',
-                    'body': '',
-                    'response': '{}',
-                    'client_ip_address': '127.0.0.1',
-                    'execution_time': 0.1,
-                    'added_on': timezone.now()
-                }
-                
-                # Fill queue to trigger bulk insertion
-                thread.put_log_data(log_data)
-                thread.put_log_data(log_data)
-                
-                # Bulk insertion should be called
-                mock_bulk.assert_called()
+
+            log_data = {
+                'api': '/api/test/',
+                'method': 'GET',
+                'status_code': 200,
+                'headers': '{}',
+                'body': '',
+                'response': '{}',
+                'client_ip_address': '127.0.0.1',
+                'execution_time': 0.1,
+                'added_on': timezone.now()
+            }
+
+            thread.put_log_data(log_data)
+            self.assertFalse(thread._flush_event.is_set())
+
+            thread.put_log_data(log_data)
+
+            self.assertTrue(thread._flush_event.is_set())
+            self.assertEqual(thread._queue.qsize(), 2)
 
     @override_settings(DRF_LOGGER_QUEUE_MAX_SIZE=10)
     @patch('drf_api_logger.insert_log_into_database.APILogsModel')
@@ -228,6 +228,7 @@ class TestBackgroundThread(TestCase):
         # Check that bulk_create was called
         mock_manager.using.assert_called_with(thread.DRF_API_LOGGER_DEFAULT_DATABASE)
         mock_manager.using.return_value.bulk_create.assert_called_with(bulk_items)
+        self.assertEqual(thread.get_status()['inserted_count'], 3)
 
     @patch('drf_api_logger.insert_log_into_database.APILogsModel')
     def test_database_insertion_operational_error(self, mock_model):
@@ -262,6 +263,7 @@ class TestBackgroundThread(TestCase):
         # Should not raise, but should print error
         thread._insert_into_data_base(bulk_items)
         mock_print.assert_called_with('DRF API LOGGER EXCEPTION:', mock_manager.using.return_value.bulk_create.side_effect)
+        self.assertEqual(thread.get_status()['failed_insert_count'], 1)
 
     @override_settings(DRF_API_LOGGER_DEFAULT_DATABASE='custom_db')
     @patch('drf_api_logger.insert_log_into_database.APILogsModel')
@@ -271,6 +273,47 @@ class TestBackgroundThread(TestCase):
         
         thread = InsertLogIntoDatabase()
         self.assertEqual(thread.DRF_API_LOGGER_DEFAULT_DATABASE, 'custom_db')
+
+    @patch('drf_api_logger.insert_log_into_database.APILogsModel')
+    def test_shutdown_flushes_remaining_logs(self, mock_model):
+        """Test shutdown flushes queued logs before stopping"""
+        from drf_api_logger.insert_log_into_database import InsertLogIntoDatabase
+
+        thread = InsertLogIntoDatabase()
+        log_data = {
+            'api': '/api/test/',
+            'method': 'GET',
+            'status_code': 200,
+            'headers': '{}',
+            'body': '',
+            'response': '{}',
+            'client_ip_address': '127.0.0.1',
+            'execution_time': 0.1,
+            'added_on': timezone.now()
+        }
+
+        thread.put_log_data(log_data)
+
+        with patch.object(thread, '_insert_into_data_base') as mock_insert:
+            thread.shutdown()
+
+        mock_insert.assert_called_once()
+        self.assertTrue(thread._stop_event.is_set())
+
+    @patch('drf_api_logger.insert_log_into_database.APILogsModel')
+    def test_custom_handler_can_drop_log(self, mock_model):
+        """Test custom handler can return None to drop a log"""
+        from drf_api_logger.insert_log_into_database import InsertLogIntoDatabase
+
+        thread = InsertLogIntoDatabase()
+        thread.custom_handler = lambda data: None
+
+        thread.put_log_data({'api': '/api/test/'})
+
+        mock_model.assert_not_called()
+        status = thread.get_status()
+        self.assertEqual(status['dropped_count'], 1)
+        self.assertEqual(status['queue_backlog'], 0)
 
 
 class TestAppConfig(TestCase):
@@ -285,12 +328,12 @@ class TestAppConfig(TestCase):
         
         from drf_api_logger.apps import LoggerConfig
         
-        with patch('drf_api_logger.apps.InsertLogIntoDatabase') as mock_thread_class:
+        with patch('drf_api_logger.insert_log_into_database.InsertLogIntoDatabase') as mock_thread_class:
             mock_thread = Mock()
             mock_thread_class.return_value = mock_thread
             
             with patch('threading.enumerate', return_value=[]):
-                config = LoggerConfig('drf_api_logger', Mock())
+                config = LoggerConfig('drf_api_logger', logger_module)
                 config.ready()
                 
                 # Thread should be created and started
@@ -306,12 +349,12 @@ class TestAppConfig(TestCase):
         
         from drf_api_logger.apps import LoggerConfig
         
-        with patch('drf_api_logger.apps.InsertLogIntoDatabase') as mock_thread_class:
+        with patch('drf_api_logger.insert_log_into_database.InsertLogIntoDatabase') as mock_thread_class:
             mock_thread = Mock()
             mock_thread_class.return_value = mock_thread
             
             with patch('threading.enumerate', return_value=[]):
-                config = LoggerConfig('drf_api_logger', Mock())
+                config = LoggerConfig('drf_api_logger', logger_module)
                 config.ready()
                 
                 # Thread should be created and started
@@ -327,8 +370,8 @@ class TestAppConfig(TestCase):
         
         from drf_api_logger.apps import LoggerConfig
         
-        with patch('drf_api_logger.apps.InsertLogIntoDatabase') as mock_thread_class:
-            config = LoggerConfig('drf_api_logger', Mock())
+        with patch('drf_api_logger.insert_log_into_database.InsertLogIntoDatabase') as mock_thread_class:
+            config = LoggerConfig('drf_api_logger', logger_module)
             config.ready()
             
             # Thread should not be created
@@ -346,9 +389,9 @@ class TestAppConfig(TestCase):
         
         from drf_api_logger.apps import LoggerConfig
         
-        with patch('drf_api_logger.apps.InsertLogIntoDatabase') as mock_thread_class:
+        with patch('drf_api_logger.insert_log_into_database.InsertLogIntoDatabase') as mock_thread_class:
             with patch('threading.enumerate', return_value=[existing_thread]):
-                config = LoggerConfig('drf_api_logger', Mock())
+                config = LoggerConfig('drf_api_logger', logger_module)
                 config.ready()
                 
                 # New thread should not be created
