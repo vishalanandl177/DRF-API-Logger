@@ -15,7 +15,7 @@ djangorestframework==3.16.1
 docutils==0.22
 et_xmlfile==2.0.0
 id==1.5.0
-idna==3.10
+idna==3.15
 importlib_metadata==8.7.0
 jaraco.classes==3.4.0
 jaraco.context==6.0.1
