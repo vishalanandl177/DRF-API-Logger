@@ -67,6 +67,33 @@ If using database logging, run migrations:
 python manage.py migrate
 ```
 
+> **Upgrade warning for large MySQL/MariaDB tables:** Version 1.2.0+ adds
+> profiling-related columns (`profiling_data` and `sql_query_count`) to the
+> `drf_api_logs` table. On large MySQL/MariaDB tables, adding columns can take
+> locks or require table rebuilds depending on the database version, storage
+> engine, row format, and existing table definition. Plan this migration like a
+> production schema change.
+>
+> Before upgrading, inspect the SQL Django will run:
+>
+> ```bash
+> python manage.py sqlmigrate drf_api_logger 0003
+> ```
+>
+> For large MySQL/MariaDB deployments, validate the generated SQL against your
+> exact database/version, prefer database-native online DDL where supported, and
+> consider manually adding the columns with a safe online schema migration tool
+> or database-native online DDL. If the columns are added manually, fake-apply
+> the Django migration afterward:
+>
+> ```bash
+> python manage.py migrate drf_api_logger 0003 --fake
+> ```
+>
+> Avoid copying a generic `ALTER TABLE` command without validating it for your
+> database. MySQL and MariaDB online DDL behavior differs by version and table
+> definition.
+
 ## ⚙️ Quick Start
 
 ### Database Logging

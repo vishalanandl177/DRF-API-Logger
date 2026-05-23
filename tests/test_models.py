@@ -4,6 +4,7 @@ Test cases for Models and Admin
 from django.test import TestCase, RequestFactory
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.models import User
+from django.db.models.fields import NOT_PROVIDED
 from django.utils import timezone
 from django.test.utils import override_settings
 from unittest.mock import Mock, patch
@@ -151,6 +152,21 @@ class TestModels(TestCase):
         log.save()
         
         self.assertEqual(len(log.api), 1024)
+
+    def test_profiling_fields_are_nullable_without_model_defaults(self):
+        """Profiling fields should allow NULL without adding Python defaults."""
+        if not database_log_enabled():
+            self.skipTest("Database logging is not enabled")
+
+        profiling_field = self.APILogsModel._meta.get_field('profiling_data')
+        sql_query_count_field = self.APILogsModel._meta.get_field('sql_query_count')
+
+        self.assertTrue(profiling_field.null)
+        self.assertTrue(profiling_field.blank)
+        self.assertIs(profiling_field.default, NOT_PROVIDED)
+        self.assertTrue(sql_query_count_field.null)
+        self.assertTrue(sql_query_count_field.blank)
+        self.assertIs(sql_query_count_field.default, NOT_PROVIDED)
 
 
 @override_settings(DRF_API_LOGGER_DATABASE=True)
