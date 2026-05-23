@@ -1,7 +1,7 @@
 DRF API Logger
 ==============
 
-.. image:: https://img.shields.io/badge/version-1.2.0-blue.svg
+.. image:: https://img.shields.io/badge/version-1.2.2-blue.svg
    :alt: Version
 .. image:: https://static.pepy.tech/personalized-badge/drf-api-logger?period=total&units=none&left_color=black&right_color=orange&left_text=Downloads%20Total
    :target: http://pepy.tech/project/drf-api-logger

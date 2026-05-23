@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.abspath('..'))
 project = 'DRF API Logger'
 copyright = '2020, Vishal Anand'
 author = 'Vishal Anand'
-release = '1.2.0'
+release = '1.2.2'
 
 extensions = [
     'sphinx.ext.autodoc',

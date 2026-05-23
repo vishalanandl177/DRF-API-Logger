@@ -11,11 +11,11 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='apilogsmodel',
             name='profiling_data',
-            field=models.TextField(blank=True, default=None, null=True),
+            field=models.TextField(blank=True, null=True),
         ),
         migrations.AddField(
             model_name='apilogsmodel',
             name='sql_query_count',
-            field=models.PositiveIntegerField(blank=True, default=None, null=True),
+            field=models.PositiveIntegerField(blank=True, null=True),
         ),
     ]

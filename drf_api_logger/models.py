@@ -80,12 +80,10 @@ if database_log_enabled():
         profiling_data = models.TextField(
             null=True,
             blank=True,
-            default=None,
         )
         sql_query_count = models.PositiveIntegerField(
             null=True,
             blank=True,
-            default=None,
         )
 
         def __str__(self):

@@ -1,6 +1,6 @@
 # DRF API Logger
 
-[![Version](https://img.shields.io/badge/version-1.2.1-blue.svg)](https://github.com/vishalanandl177/DRF-API-Logger)
+[![Version](https://img.shields.io/badge/version-1.2.2-blue.svg)](https://github.com/vishalanandl177/DRF-API-Logger)
 [![Python](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org)
 [![Django](https://img.shields.io/badge/django-3.2+-green.svg)](https://djangoproject.com)
 [![DRF](https://img.shields.io/badge/djangorestframework-3.12+-orange.svg)](https://www.django-rest-framework.org)
@@ -66,6 +66,33 @@ If using database logging, run migrations:
 ```bash
 python manage.py migrate
 ```
+
+> **Upgrade warning for large MySQL/MariaDB tables:** Version 1.2.0+ adds
+> profiling-related columns (`profiling_data` and `sql_query_count`) to the
+> `drf_api_logs` table. On large MySQL/MariaDB tables, adding columns can take
+> locks or require table rebuilds depending on the database version, storage
+> engine, row format, and existing table definition. Plan this migration like a
+> production schema change.
+>
+> Before upgrading, inspect the SQL Django will run:
+>
+> ```bash
+> python manage.py sqlmigrate drf_api_logger 0003
+> ```
+>
+> For large MySQL/MariaDB deployments, validate the generated SQL against your
+> exact database/version, prefer database-native online DDL where supported, and
+> consider manually adding the columns with a safe online schema migration tool
+> or database-native online DDL. If the columns are added manually, fake-apply
+> the Django migration afterward:
+>
+> ```bash
+> python manage.py migrate drf_api_logger 0003 --fake
+> ```
+>
+> Avoid copying a generic `ALTER TABLE` command without validating it for your
+> database. MySQL and MariaDB online DDL behavior differs by version and table
+> definition.
 
 ## ⚙️ Quick Start
 

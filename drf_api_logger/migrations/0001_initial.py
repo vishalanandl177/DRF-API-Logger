@@ -29,6 +29,7 @@ class Migration(migrations.Migration):
                 'verbose_name': 'API Log',
                 'verbose_name_plural': 'API Logs',
                 'db_table': 'drf_api_logs',
+                'ordering': ('-added_on',),
             },
         ),
     ]
