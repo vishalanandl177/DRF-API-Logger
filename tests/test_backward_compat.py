@@ -164,12 +164,17 @@ class TestBackwardCompatAdmin(TestCase):
         from django.contrib.admin.sites import AdminSite
 
         admin = APILogsAdmin(APILogsModel, AdminSite())
+        # headers/body/response are rendered through prettified, syntax-highlighted
+        # readonly methods instead of the raw model fields (which are excluded).
         expected = (
             'execution_time', 'client_ip_address', 'api',
-            'headers', 'body', 'method', 'response', 'status_code', 'added_on_time',
+            'headers_prettified', 'body_prettified', 'method', 'response_prettified',
+            'status_code', 'added_on_time',
         )
         self.assertEqual(admin.readonly_fields, expected)
         self.assertNotIn('profiling_breakdown', admin.readonly_fields)
+        for raw_field in ('headers', 'body', 'response'):
+            self.assertIn(raw_field, admin.exclude)
 
     @override_settings(DRF_API_LOGGER_ENABLE_PROFILING=True)
     def test_admin_with_profiling_enabled(self):

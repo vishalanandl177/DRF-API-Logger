@@ -233,6 +233,74 @@ class TestAdmin(TestCase):
         self.assertIn('client_ip_address', readonly)
         self.assertIn('api', readonly)
 
+    def test_admin_prettifies_json_fields(self):
+        """headers/body/response render as highlighted, pretty-printed JSON blocks"""
+        if not database_log_enabled():
+            self.skipTest("Database logging is not enabled")
+
+        obj = self.APILogsModel(
+            api='http://testserver/api/',
+            headers='{"Content-Type": "application/json"}',
+            body='{"a": 1, "b": [1, 2, 3]}',
+            response='{"ok": true, "value": null, "count": 42}',
+            method='POST',
+            client_ip_address='127.0.0.1',
+            status_code=200,
+            execution_time=0.1,
+            added_on=timezone.now(),
+        )
+
+        rendered = str(self.admin.response_prettified(obj))
+        self.assertIn('apilogs-json', rendered)
+        # Compact stored JSON is re-indented for readability (quotes are escaped).
+        self.assertIn('\n  &quot;ok&quot;', rendered)
+
+    def test_admin_prettify_escapes_html(self):
+        """Values containing HTML are escaped so they cannot break out of <pre>"""
+        if not database_log_enabled():
+            self.skipTest("Database logging is not enabled")
+
+        from drf_api_logger.admin import _prettify_json_field
+
+        rendered = str(_prettify_json_field('{"x": "<script>alert(1)</script>"}'))
+        self.assertNotIn('<script>', rendered)
+        self.assertIn('&lt;script&gt;', rendered)
+
+    def test_admin_prettify_empty_value(self):
+        """Empty fields render an explicit empty placeholder, not an empty <pre>"""
+        if not database_log_enabled():
+            self.skipTest("Database logging is not enabled")
+
+        from drf_api_logger.admin import _prettify_json_field
+
+        for empty in ('', None):
+            rendered = str(_prettify_json_field(empty))
+            self.assertIn('apilogs-empty', rendered)
+            self.assertNotIn('apilogs-json', rendered)
+
+    def test_admin_prettify_truncation_marker(self):
+        """Truncation markers keep a badge and are not mangled as JSON"""
+        if not database_log_enabled():
+            self.skipTest("Database logging is not enabled")
+
+        from drf_api_logger.admin import _prettify_json_field
+
+        marker = '** Response body truncated: 70000 bytes exceeds 65536 byte limit **'
+        rendered = str(_prettify_json_field(marker))
+        self.assertIn('apilogs-truncated', rendered)
+        self.assertIn(marker, rendered)
+
+    def test_admin_prettify_non_json_passthrough(self):
+        """Non-JSON payloads (e.g. XML) are shown as-is, escaped, without errors"""
+        if not database_log_enabled():
+            self.skipTest("Database logging is not enabled")
+
+        from drf_api_logger.admin import _prettify_json_field
+
+        rendered = str(_prettify_json_field('<note><to>Tove</to></note>'))
+        self.assertIn('apilogs-json', rendered)
+        self.assertIn('&lt;note&gt;', rendered)
+
     def test_admin_has_add_permission(self):
         """Test that add permission is disabled"""
         if not database_log_enabled():
