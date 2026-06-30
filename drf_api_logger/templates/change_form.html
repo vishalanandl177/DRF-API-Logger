@@ -1,8 +1,96 @@
 {% extends 'admin/change_form.html' %}
 
+{% block extrahead %}
+{{ block.super }}
+<style>
+  .apilogs-json {
+    background: #1e1e2e;
+    color: #cdd6f4;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 14px 16px;
+    border-radius: 6px;
+    border: 1px solid #313244;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow: auto;
+    max-height: 600px;
+    margin: 4px 0;
+    tab-size: 2;
+  }
+
+  .apilogs-empty {
+    color: #888;
+    font-style: italic;
+  }
+
+  .apilogs-truncated {
+    display: inline-block;
+    background: #f38ba8;
+    color: #1e1e2e;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    font-family: sans-serif;
+  }
+
+  /* Syntax colouring applied by JS below */
+  .apilogs-key    { color: #89b4fa; }
+  .apilogs-str    { color: #a6e3a1; }
+  .apilogs-num    { color: #fab387; }
+  .apilogs-bool   { color: #cba6f7; }
+  .apilogs-null   { color: #f38ba8; }
+  .apilogs-punct  { color: #6c7086; }
+</style>
+{% endblock %}
+
 {% block submit_buttons_bottom %}
     {{ block.super }}
     <div class="submit-row">
         <a href="?export=true">Export CSV</a>
     </div>
+{% endblock %}
+
+{% block content %}
+{{ block.super }}
+<script>
+(function () {
+  // Escape HTML first so values containing <, > or & are rendered safely and
+  // never break out of the <pre> (no XSS, even for large response bodies).
+  function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // Single-pass JSON tokeniser. Strings are matched whole, so braces/brackets
+  // that live inside a string value are never mistaken for structural
+  // punctuation. Works on arbitrarily large bodies.
+  var TOKEN = /("(\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(?:true|false)\b|\bnull\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?|[{}\[\],])/g;
+
+  function highlight(pre) {
+    var raw = pre.textContent;
+    try { JSON.parse(raw); } catch (e) { return; }  // leave non-JSON untouched
+
+    pre.innerHTML = escapeHtml(raw).replace(TOKEN, function (match) {
+      var cls;
+      if (match.charAt(0) === '"') {
+        cls = /:\s*$/.test(match) ? 'apilogs-key' : 'apilogs-str';
+      } else if (match === 'true' || match === 'false') {
+        cls = 'apilogs-bool';
+      } else if (match === 'null') {
+        cls = 'apilogs-null';
+      } else if (/^[{}\[\],]$/.test(match)) {
+        cls = 'apilogs-punct';
+      } else {
+        cls = 'apilogs-num';
+      }
+      return '<span class="' + cls + '">' + match + '</span>';
+    });
+  }
+
+  document.querySelectorAll('.apilogs-json').forEach(highlight);
+})();
+</script>
 {% endblock %}
