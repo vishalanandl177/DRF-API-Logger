@@ -76,6 +76,12 @@ def _get_profiling_diagnosis(profiling):
     return None
 
 
+def _normalized_filter_value(value):
+    if isinstance(value, (list, tuple)):
+        return value[-1] if value else None
+    return value
+
+
 # Ensure the API log model and related features are only used if enabled in settings
 if database_log_enabled():
     from drf_api_logger.models import APILogsModel
@@ -144,9 +150,10 @@ if database_log_enabled():
             Returns filtered queryset depending on whether 'slow' or 'fast'
             option is selected in the filter.
             """
-            if self.value() == 'slow':
+            value = _normalized_filter_value(self.value())
+            if value == 'slow':
                 return queryset.filter(execution_time__gte=self._DRF_API_LOGGER_SLOW_API_ABOVE)
-            if self.value() == 'fast':
+            if value == 'fast':
                 return queryset.filter(execution_time__lt=self._DRF_API_LOGGER_SLOW_API_ABOVE)
             return queryset
 
@@ -164,13 +171,14 @@ if database_log_enabled():
             )
 
         def queryset(self, request, queryset):
-            if self.value() == 'high':
+            value = _normalized_filter_value(self.value())
+            if value == 'high':
                 return queryset.filter(sql_query_count__gte=10)
-            if self.value() == 'moderate':
+            if value == 'moderate':
                 return queryset.filter(sql_query_count__gte=5, sql_query_count__lt=10)
-            if self.value() == 'low':
+            if value == 'low':
                 return queryset.filter(sql_query_count__lt=5, sql_query_count__isnull=False)
-            if self.value() == 'none':
+            if value == 'none':
                 return queryset.filter(sql_query_count__isnull=True)
             return queryset
 
