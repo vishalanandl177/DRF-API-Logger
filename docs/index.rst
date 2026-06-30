@@ -1,7 +1,7 @@
 DRF API Logger
 ==============
 
-.. image:: https://img.shields.io/badge/version-1.2.2-blue.svg
+.. image:: https://img.shields.io/badge/version-1.2.3-blue.svg
    :alt: Version
 .. image:: https://static.pepy.tech/personalized-badge/drf-api-logger?period=total&units=none&left_color=black&right_color=orange&left_text=Downloads%20Total
    :target: http://pepy.tech/project/drf-api-logger
@@ -17,7 +17,9 @@ request/response information with low request-path overhead.
    :maxdepth: 2
    :hidden:
 
+   operations
    compliance
+   developer_testing
 
 Key Features
 ------------
@@ -29,6 +31,17 @@ Key Features
 - Database logging and/or real-time signal notifications
 - Built-in admin dashboard with charts and performance metrics
 - Per-request API profiling with auto-diagnosis of bottlenecks
+
+
+Supported Versions
+------------------
+
+- Python 3.10+
+- Django 4.2+
+- Django REST Framework 3.16+
+
+The release workflow tests representative Django versions from this support
+range before publishing package artifacts.
 
 
 Getting Started
@@ -482,8 +495,8 @@ Model Schema
 
 .. warning::
 
-   Over time, the logs table will grow large. Archive or delete old data periodically
-   and add indexes to improve query performance.
+   Over time, the logs table will grow large. Use ``prune_api_logs`` for
+   dry-run-first batched deletion and add indexes to improve query performance.
 
 
 Performance & Production
@@ -498,7 +511,32 @@ Performance & Production
    DRF_LOGGER_QUEUE_MAX_SIZE = 100
    DRF_LOGGER_INTERVAL = 5
 
+Prune old log rows periodically. Always run a dry run first:
+
+.. code-block:: bash
+
+   python manage.py prune_api_logs --days 30 --dry-run
+   python manage.py prune_api_logs --days 30 --batch-size 1000
+
+You can also prune before a fixed date:
+
+.. code-block:: bash
+
+   python manage.py prune_api_logs --before 2026-06-01 --dry-run
+   python manage.py prune_api_logs --before 2026-06-01
+
 - **Low request-path overhead** from enqueue-only background processing
 - **Observable queue backlog** via ``LOGGER_THREAD.get_status()`` for health checks
 - **Efficient storage** (bulk database operations)
 - **Production-safe profiling** (``force_debug_cursor`` is thread-local, ``reset_queries`` prevents memory leaks)
+
+Example health check:
+
+.. code-block:: python
+
+   from drf_api_logger.apps import LOGGER_THREAD
+
+   def drf_logger_status():
+       if LOGGER_THREAD is None:
+           return {"enabled": False}
+       return {"enabled": True, **LOGGER_THREAD.get_status()}

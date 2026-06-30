@@ -1,0 +1,17 @@
+-e .
+
+# Latest supported local development stack.
+Django>=6.0,<6.1
+djangorestframework>=3.17,<3.18
+
+# Test, coverage, packaging, and release checks.
+coverage>=7.6
+tox>=4.20
+build>=1.2
+twine>=6.0
+
+# Documentation build tools.
+Sphinx>=7.1
+sphinx-rtd-theme>=2.0
+myst-parser>=2.0
+sphinx-autodoc-typehints>=1.24

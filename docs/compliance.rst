@@ -69,7 +69,10 @@ For production and compliance-sensitive systems:
 - Use ``DRF_API_LOGGER_DEFAULT_DATABASE`` to write logs to a dedicated database.
 - Enable encryption at rest and backups on the database platform.
 - Limit database and Django admin access with least-privilege roles.
-- Define retention and deletion jobs for old log rows.
+- Define retention and deletion jobs for old log rows. The package includes
+  ``python manage.py prune_api_logs --days 30 --dry-run`` and
+  ``python manage.py prune_api_logs --days 30 --batch-size 1000`` for
+  dry-run-first, batched deletion.
 - Avoid storing request or response bodies for endpoints that handle regulated
   data unless there is a documented business need.
 

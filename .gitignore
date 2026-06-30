@@ -2,3 +2,12 @@ drf_api_logger.egg-info/
 .idea/
 __pycache__/
 docs/_build/
+.venv/
+venv/
+.tox/
+.coverage
+htmlcov/
+build/
+dist/
+test_dist/
+*.prof

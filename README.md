@@ -1,13 +1,22 @@
 # DRF API Logger
 
-[![Version](https://img.shields.io/badge/version-1.2.2-blue.svg)](https://github.com/vishalanandl177/DRF-API-Logger)
-[![Python](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org)
-[![Django](https://img.shields.io/badge/django-3.2+-green.svg)](https://djangoproject.com)
-[![DRF](https://img.shields.io/badge/djangorestframework-3.12+-orange.svg)](https://www.django-rest-framework.org)
+[![Version](https://img.shields.io/badge/version-1.2.3-blue.svg)](https://github.com/vishalanandl177/DRF-API-Logger)
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org)
+[![Django](https://img.shields.io/badge/django-4.2%2B-green.svg)](https://djangoproject.com)
+[![DRF](https://img.shields.io/badge/djangorestframework-3.16%2B-orange.svg)](https://www.django-rest-framework.org)
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=total&left_color=black&right_color=orange&left_text=Downloads)](http://pepy.tech/project/drf-api-logger)
 [![License](https://img.shields.io/badge/license-Apache%202.0-red.svg)](https://opensource.org/licenses/Apache-2.0)
 
 **The production standard for DRF API observability.** Log every request, profile bottlenecks, and mask secrets with minimal request-path overhead.
+
+## Supported Versions
+
+- Python 3.10+
+- Django 4.2+
+- Django REST Framework 3.16+
+
+The GitHub Actions workflow tests representative Django versions from this
+support range before publishing a package release.
 
 ## 🚀 Key Features
 
@@ -432,16 +441,19 @@ The package includes comprehensive test coverage:
 
 ```bash
 # Install test dependencies
-pip install -e .
+pip install -r requirements-dev.txt
 
 # Run core tests
 python test_runner_simple.py
 
-# Run full test suite  
-python run_tests.py
+# Run full test suite
+python -m django test tests --settings=tests.test_settings --verbosity=1
+
+# Run supported Python/Django/DRF combinations
+tox
 
 # With coverage
-coverage run --source drf_api_logger run_tests.py
+coverage run --source drf_api_logger -m django test tests --settings=tests.test_settings --verbosity=1
 coverage report
 ```
 
@@ -470,13 +482,20 @@ For high-traffic applications:
    CREATE INDEX idx_api_logs_api_method ON drf_api_logs(api, method);
    ```
 
-4. **Archive old data** periodically:
-   ```python
-   # Delete logs older than 30 days
-   old_logs = APILogsModel.objects.filter(
-       added_on__lt=timezone.now() - timedelta(days=30)
-   )
-   old_logs.delete()
+4. **Prune old data** periodically:
+   ```bash
+   # Preview rows older than 30 days
+   python manage.py prune_api_logs --days 30 --dry-run
+
+   # Delete rows older than 30 days in batches
+   python manage.py prune_api_logs --days 30 --batch-size 1000
+   ```
+
+   You can also prune before a fixed date:
+
+   ```bash
+   python manage.py prune_api_logs --before 2026-06-01 --dry-run
+   python manage.py prune_api_logs --before 2026-06-01
    ```
 
 ### Performance Impact
@@ -484,6 +503,17 @@ For high-traffic applications:
 - **Low request-path overhead** from enqueue-only background processing
 - **Observable queue backlog** via `LOGGER_THREAD.get_status()` for health checks
 - **Efficient storage** (bulk database operations)
+
+Example health check:
+
+```python
+from drf_api_logger.apps import LOGGER_THREAD
+
+def drf_logger_status():
+    if LOGGER_THREAD is None:
+        return {"enabled": False}
+    return {"enabled": True, **LOGGER_THREAD.get_status()}
+```
 
 ### Compliance Readiness
 
@@ -497,15 +527,15 @@ deployment checklist.
 
 Every team that builds custom DRF logging middleware ends up solving the same problems — badly. Here's what you get wrong when you roll your own:
 
-| Problem | Custom Logging | drf-api-logger |
-|---|---|---|
-| **Thread safety** | Easy to introduce race conditions with shared state, file handles, or DB connections across threads | Dedicated daemon thread with thread-safe queue, bulk inserts, and graceful shutdown on SIGINT/SIGTERM |
-| **Performance overhead** | Synchronous logging in the request/response cycle adds latency to every API call | Request threads enqueue records; the background worker performs bulk database writes |
-| **Sensitive data exposure** | Passwords, tokens, headers, and secrets end up in logs unless you remember to filter every field | Automatic recursive masking of credential keys and headers with `***FILTERED***`, extensible via settings |
-| **No analytics** | Raw log files or DB rows with no way to visualize trends, filter by status code, or spot slow endpoints | Built-in Django admin dashboard with charts, date hierarchy, status code distribution, CSV export, and slow API detection |
+| Problem | Custom Logging | drf-api-logger                                                                                                                  |
+|---|---|---------------------------------------------------------------------------------------------------------------------------------|
+| **Thread safety** | Easy to introduce race conditions with shared state, file handles, or DB connections across threads | Dedicated daemon thread with thread-safe queue, bulk inserts, and graceful shutdown on SIGINT/SIGTERM                           |
+| **Performance overhead** | Synchronous logging in the request/response cycle adds latency to every API call | Request threads enqueue records; the background worker performs bulk database writes                                            |
+| **Sensitive data exposure** | Passwords, tokens, headers, and secrets end up in logs unless you remember to filter every field | Automatic recursive masking of credential keys and headers with `***FILTERED***`, extensible via settings                       |
+| **No analytics** | Raw log files or DB rows with no way to visualize trends, filter by status code, or spot slow endpoints | Built-in Django admin dashboard with charts, date hierarchy, status code distribution, CSV export, and slow API detection       |
 | **No profiling** | No idea if slowness is from SQL, business logic, or middleware — you attach `django-debug-toolbar` and hope | Per-request latency breakdown with auto-diagnosis: N+1 queries, slow queries, middleware overhead — in production, not just dev |
-| **Missing request context** | Client IP behind proxies, request tracing across services, timezone-aware timestamps — all manual work | `X-Forwarded-For` handling, configurable tracing IDs (UUID, header, custom function), timezone-aware logging |
-| **Maintenance burden** | Every Django/DRF upgrade risks breaking your custom middleware | Battle-tested across Django 3.2+ and DRF 3.12+, with CI and 100+ tests |
+| **Missing request context** | Client IP behind proxies, request tracing across services, timezone-aware timestamps — all manual work | `X-Forwarded-For` handling, configurable tracing IDs (UUID, header, custom function), timezone-aware logging                    |
+| **Maintenance burden** | Every Django/DRF upgrade risks breaking your custom middleware | Supports Django 4.2+ and DRF 3.16+, with representative CI coverage and 100+ tests                                             |
 
 **Bottom line:** `pip install drf-api-logger` replaces hundreds of lines of fragile custom code with a production-tested, zero-config solution.
 
@@ -571,7 +601,7 @@ We welcome contributions! Please read our [Contributing Guide](CONTRIBUTING.md) 
 ```bash
 git clone https://github.com/vishalanandl177/DRF-API-Logger.git
 cd DRF-API-Logger
-pip install -e .
+python -m pip install -r requirements-dev.txt
 make test-core  # Run tests
 ```
 

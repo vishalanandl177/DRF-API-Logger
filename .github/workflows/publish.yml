@@ -1,4 +1,4 @@
-name: Build and publish package
+name: Test, build, and publish package
 
 on:
   pull_request:
@@ -15,8 +15,54 @@ permissions:
   contents: read
 
 jobs:
+  test:
+    name: Python ${{ matrix.python-version }} / ${{ matrix.django-label }} / ${{ matrix.drf-label }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python-version: "3.10"
+            django-label: "Django 4.2"
+            django-package: "Django>=4.2,<4.3"
+            drf-label: "DRF 3.16"
+            drf-package: "djangorestframework>=3.16,<3.17"
+          - python-version: "3.11"
+            django-label: "Django 4.2"
+            django-package: "Django>=4.2,<4.3"
+            drf-label: "DRF 3.16"
+            drf-package: "djangorestframework>=3.16,<3.17"
+          - python-version: "3.12"
+            django-label: "Django 5.2"
+            django-package: "Django>=5.2,<5.3"
+            drf-label: "DRF 3.16"
+            drf-package: "djangorestframework>=3.16,<3.17"
+          - python-version: "3.13"
+            django-label: "Django 6.0"
+            django-package: "Django>=6.0,<6.1"
+            drf-label: "DRF 3.17"
+            drf-package: "djangorestframework>=3.17,<3.18"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "${{ matrix.django-package }}" "${{ matrix.drf-package }}"
+          python -m pip install -e .
+
+      - name: Run full test suite
+        run: python -m django test tests --settings=tests.test_settings --verbosity=1
+
   build:
-    name: Test and build distribution
+    name: Build distribution
     runs-on: ubuntu-latest
 
     steps:
@@ -26,16 +72,13 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Install package and build tools
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e .
           python -m pip install build twine
-
-      - name: Run tests
-        run: python -m django test tests --settings=tests.test_settings --verbosity=1
 
       - name: Build package
         run: python -m build --sdist --wheel
@@ -73,7 +116,9 @@ jobs:
 
   publish:
     name: Publish to PyPI
-    needs: build
+    needs:
+      - test
+      - build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     environment: pypi
@@ -89,7 +134,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Install metadata tooling
         run: python -m pip install --upgrade setuptools
@@ -163,7 +208,7 @@ jobs:
 
           printf 'Publishing wheel artifacts:\n'
           printf '%s\n' "${wheel_files[@]}"
-          printf 'Publishing source distribution artifacts:\n'
+          printf 'Source distribution artifacts:\n'
           printf '%s\n' "${sdist_files[@]}"
 
       - name: Publish package distributions to PyPI
