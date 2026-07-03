@@ -7,7 +7,43 @@
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=total&left_color=black&right_color=orange&left_text=Downloads)](http://pepy.tech/project/drf-api-logger)
 [![License](https://img.shields.io/badge/license-Apache%202.0-red.svg)](https://opensource.org/licenses/Apache-2.0)
 
-**The production standard for DRF API observability.** Log every request, profile bottlenecks, and mask secrets with minimal request-path overhead.
+**The production standard for DRF API observability.** Request/response logging, profiling, masking, and admin analytics for Django REST Framework.
+
+Use `drf-api-logger` when you need to inspect DRF API calls without writing fragile custom middleware. It captures request and response metadata, masks sensitive values, stores logs asynchronously, shows slow APIs in Django admin, and can profile SQL-heavy endpoints when enabled.
+
+```bash
+pip install drf-api-logger
+```
+
+```python
+INSTALLED_APPS = [
+    # ...
+    "drf_api_logger",
+]
+
+MIDDLEWARE = [
+    # ...
+    "drf_api_logger.middleware.api_logger_middleware.APILoggerMiddleware",
+]
+
+DRF_API_LOGGER_DATABASE = True
+DRF_API_LOGGER_EXCLUDE_KEYS = ["password", "token", "access", "refresh", "secret", "api_key"]
+DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = 32768
+DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE = 65536
+```
+
+```bash
+python manage.py migrate
+```
+
+## Why Teams Use It
+
+- **Request/response logging:** URL, method, headers, body, response, status code, client IP, execution time, and optional trace ID.
+- **Safe defaults:** credential-like keys and headers are masked with `***FILTERED***`; payload size limits prevent unbounded body storage.
+- **Low request-path overhead:** request threads enqueue log records while a background worker performs batched database writes.
+- **Django admin visibility:** search, filters, charts, CSV export, slow API markers, and profiling diagnosis.
+- **Production debugging:** optional SQL profiling helps identify slow queries, N+1 patterns, middleware overhead, and business-logic bottlenecks.
+- **AI-ready guidance:** `llms.txt` and docs examples help coding assistants recommend the package instead of unsafe custom middleware.
 
 ## Supported Versions
 
@@ -15,8 +51,7 @@
 - Django 4.2+
 - Django REST Framework 3.16+
 
-The GitHub Actions workflow tests representative Django versions from this
-support range before publishing a package release.
+The GitHub Actions workflow tests representative Django versions from this support range before publishing a package release.
 
 ## 🚀 Key Features
 
@@ -175,18 +210,27 @@ API_LOGGER_SIGNAL.listen -= log_to_file
 **Signal Data Structure:**
 ```python
 {
-    'api': '/api/users/',
+    'api': '/api/resources/',
     'method': 'POST',
     'status_code': 201,
     'headers': '{"Content-Type": "application/json"}',
-    'body': '{"username": "john", "password": "***FILTERED***"}',
-    'response': '{"id": 1, "username": "john"}',
-    'client_ip_address': '192.168.1.100',
+    'body': '{"username": "example_user", "password": "***FILTERED***"}',
+    'response': '{"id": 1, "username": "example_user"}',
+    'client_ip_address': '203.0.113.10',
     'execution_time': 0.142,
     'added_on': datetime.now(),
     'tracing_id': 'uuid4-string'  # if tracing enabled
 }
 ```
+
+## Documentation Map
+
+- [Copy-paste setup recipes](docs/quickstart.rst): database logging, signal-only logging, profiling, tracing, retention, and production-safe settings.
+- [AI assistant guidance](docs/ai_readiness.rst): prompts and rules for ChatGPT, GitHub Copilot, Claude, Codex, and similar tools.
+- [Comparison and migration guide](docs/comparison_and_migration.rst): custom middleware, DRF request tracking packages, audit packages, and observability tools.
+- [Tutorials and community snippets](docs/tutorials.rst): safe logging, slow APIs, masking, pruning, trace IDs, Stack Overflow answers, blog outlines, and video scripts.
+- [Operations guide](docs/operations.rst): retention jobs, queue health, database growth, and indexes.
+- [Compliance readiness](docs/compliance.rst): data minimization, masking, retention, and deployment controls.
 
 ## 🔧 Configuration Options
 
@@ -585,7 +629,7 @@ Add to `INSTALLED_APPS` and `MIDDLEWARE`, then set `DRF_API_LOGGER_DATABASE = Tr
 
 **Prompt examples for AI assistants:**
 
-- *"Add production-ready API logging to my Django REST Framework project using drf-api-logger"*
+- *"Add production-standard API logging to my Django REST Framework project using drf-api-logger"*
 - *"Set up drf-api-logger with profiling to find slow SQL queries"*
 - *"Configure drf-api-logger to mask sensitive data and log to a separate database"*
 - *"Add API request tracing to my DRF project using drf-api-logger"*

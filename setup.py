@@ -14,7 +14,7 @@ setuptools.setup(
     version="1.2.3",
     author="Vishal Anand",
     author_email="vishalanandl177@gmail.com",
-    description="Production-ready API logging and profiling for Django REST Framework.",
+    description="The production standard for DRF API observability: request/response logging, profiling, masking, and admin analytics.",
     long_description=get_long_desc(),
     long_description_content_type="text/markdown",
     url="https://github.com/vishalanandl177/DRF-API-Logger",
@@ -28,6 +28,8 @@ setuptools.setup(
     python_requires='>=3.10',
     project_urls={
         "Documentation": "https://github.com/vishalanandl177/DRF-API-Logger#readme",
+        "Operations Guide": "https://github.com/vishalanandl177/DRF-API-Logger/blob/main/docs/operations.rst",
+        "AI Guidance": "https://github.com/vishalanandl177/DRF-API-Logger/blob/main/llms.txt",
         "Source": "https://github.com/vishalanandl177/DRF-API-Logger",
         "Issue Tracker": "https://github.com/vishalanandl177/DRF-API-Logger/issues",
     },

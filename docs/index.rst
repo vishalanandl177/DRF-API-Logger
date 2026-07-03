@@ -10,13 +10,22 @@ DRF API Logger
    :target: https://opensource.org/licenses/Apache-2.0
    :alt: License
 
-A comprehensive API logging solution for Django Rest Framework projects that captures detailed
-request/response information with low request-path overhead.
+The production standard for DRF API observability: request/response logging,
+profiling, masking, and admin analytics for Django REST Framework.
+
+Use DRF API Logger when you need to inspect API calls without writing fragile
+custom middleware. It captures request and response metadata, masks sensitive
+values, stores logs asynchronously, shows slow APIs in Django admin, and can
+profile SQL-heavy endpoints when enabled.
 
 .. toctree::
    :maxdepth: 2
    :hidden:
 
+   quickstart
+   ai_readiness
+   comparison_and_migration
+   tutorials
    operations
    compliance
    developer_testing
@@ -101,20 +110,20 @@ Logs will be available in the Django Admin Panel with search, filtering, and ana
 Admin Dashboard
 ---------------
 
-.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/01-admin-dashboard.png?raw=true,
+.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/01-admin-dashboard.png?raw=true
    :alt: Admin Dashboard
    :width: 100%
 
    The DRF API Logger section appears in the Django admin home page.
 
-.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/02-api-logs-list.png?raw=true,
+.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/02-api-logs-list.png?raw=true
    :alt: API Logs List
    :width: 100%
 
    Log listing with charts for API call volume, status code distribution, and SQL query averages.
    Filter by date, status code, method, and SQL query volume.
 
-.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/06-api-log-detail-echo-masked.png?raw=true,
+.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/06-api-log-detail-echo-masked.png?raw=true
    :alt: Log Detail with Masked Data
    :width: 100%
 
@@ -155,13 +164,13 @@ Signal data structure:
 .. code-block:: python
 
    {
-       'api': '/api/users/',
+       'api': '/api/resources/',
        'method': 'POST',
        'status_code': 201,
        'headers': {'Content-Type': 'application/json'},
-       'body': {'username': 'john', 'password': '***FILTERED***'},
-       'response': {'id': 1, 'username': 'john'},
-       'client_ip_address': '192.168.1.100',
+       'body': {'username': 'example_user', 'password': '***FILTERED***'},
+       'response': {'id': 1, 'username': 'example_user'},
+       'client_ip_address': '203.0.113.10',
        'execution_time': 0.142,
        'added_on': datetime.now(),
        'tracing_id': 'uuid4-string',       # if tracing enabled
@@ -196,7 +205,7 @@ profile only a fraction of logged requests.
 Slow SQL Query Detection
 ------------------------
 
-.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/03-api-log-detail-slow-sql.png?raw=true,
+.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/03-api-log-detail-slow-sql.png?raw=true
    :alt: Slow SQL Query Detection
    :width: 100%
 
@@ -205,7 +214,7 @@ Slow SQL Query Detection
 N+1 Query Detection
 --------------------
 
-.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/05-api-log-detail-n-plus-one.png?raw=true,
+.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/05-api-log-detail-n-plus-one.png?raw=true
    :alt: N+1 Query Detection
    :width: 100%
 
@@ -214,7 +223,7 @@ N+1 Query Detection
 Middleware Overhead Detection
 -----------------------------
 
-.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/04-api-log-detail-login-masked.png?raw=true,
+.. figure:: https://raw.githubusercontent.com/vishalanandl177/DRF-API-Logger/main/screenshots/04-api-log-detail-login-masked.png?raw=true
    :alt: Middleware Overhead Detection
    :width: 100%
 
@@ -232,7 +241,7 @@ Auto-Diagnosis Patterns
    * - SQL > 70% of total + queries >= 10
      - N+1 query problem likely
    * - SQL > 70% of total + queries < 5
-     - Few but slow queries — check indexes
+     - Few but slow queries - check indexes
    * - SQL < 20% + high total time
      - Bottleneck in business logic or external calls
    * - Middleware > 10% of total
@@ -391,7 +400,7 @@ Sensitive fields are automatically masked:
 .. code-block:: python
 
    DRF_API_LOGGER_EXCLUDE_KEYS = ['password', 'token', 'access', 'refresh', 'secret']
-   # Result: {"password": "***FILTERED***", "username": "john"}
+   # Result: {"password": "***FILTERED***", "username": "example_user"}
 
 Default masking also covers common credential-bearing headers and keys including
 ``authorization``, ``cookie``, ``set_cookie``, ``api_key``, ``x_api_key``,
