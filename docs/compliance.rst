@@ -61,6 +61,26 @@ records before they enter the background queue:
 
 Returning ``None`` intentionally drops that log entry.
 
+Request Correlation Controls
+----------------------------
+
+Request correlation is disabled by default. When
+``DRF_API_LOGGER_ENABLE_CORRELATION`` is enabled, request IDs, trace IDs, route
+metadata, and allowlisted opaque context are exposed through request attributes,
+logging context, and signal payloads. The package does not persist correlation
+metadata to ``APILogsModel`` and does not add migrations, model fields, admin
+columns, database indexes, or synthetic database payload fields.
+
+For privacy-sensitive deployments:
+
+- Treat ``request_id`` and ``trace_id`` as high-cardinality operational IDs.
+- Send only route, URL name, namespace, app name, and status class to metrics
+  labels through ``low_cardinality``.
+- Use opaque values for ``actor_id``, ``tenant_id``, ``api_consumer_id``, and
+  ``client_id``.
+- Do not return names, emails, tokens, session IDs, or regulated identifiers
+  from ``DRF_API_LOGGER_CORRELATION_CONTEXT_FUNC``.
+
 Storage Controls
 ----------------
 

@@ -110,6 +110,24 @@ Important fields:
 ``inserted_count``
    Number of rows successfully inserted by the current worker.
 
+Request Correlation Operations
+------------------------------
+
+``DRF_API_LOGGER_ENABLE_CORRELATION`` is designed for joining DRF API Logger
+events with application logs, traces, and metrics without changing database
+storage. It does not add model fields, migrations, admin columns, or database
+indexes, and queued database log rows keep the existing payload shape.
+
+Recommended operating pattern:
+
+- Send ``low_cardinality`` signal metadata to metrics labels, such as route,
+  URL name, and status class.
+- Keep high-cardinality ``request_id`` and ``trace_id`` values in logs or trace
+  systems, not metrics label sets.
+- Use ``DRF_API_LOGGER_ENABLE_LOGGING_CONTEXT`` when application log records
+  inside the view should include the same request correlation metadata.
+- Return only opaque IDs from ``DRF_API_LOGGER_CORRELATION_CONTEXT_FUNC``.
+
 Database Indexes
 ----------------
 

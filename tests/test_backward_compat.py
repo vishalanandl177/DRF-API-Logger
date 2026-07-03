@@ -4,6 +4,7 @@ Ensures that when profiling is disabled (default), behavior is identical
 to the pre-profiling version of the package.
 """
 import json
+from pathlib import Path
 from unittest.mock import Mock, patch
 from django.test import TestCase, RequestFactory
 from django.http import HttpResponse
@@ -74,6 +75,47 @@ class TestBackwardCompatMiddleware(TestCase):
 
         self.assertNotIn('profiling_data', call_data)
         self.assertNotIn('sql_query_count', call_data)
+
+    @override_settings(
+        DRF_API_LOGGER_DATABASE=True,
+        DRF_API_LOGGER_SIGNAL=False,
+        DRF_API_LOGGER_ENABLE_CORRELATION=True,
+        DRF_API_LOGGER_ENABLE_PROFILING=False
+    )
+    @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
+    @patch('drf_api_logger.apps.LOGGER_THREAD')
+    def test_db_payload_unchanged_when_correlation_enabled(self, mock_thread, mock_resolve):
+        mock_resolve.return_value.namespace = None
+        mock_resolve.return_value.app_name = None
+        mock_resolve.return_value.url_name = 'test'
+        mock_resolve.return_value.route = 'api/test/'
+        mock_resolve.return_value.func = self.get_json_response
+        mock_thread.put_log_data = Mock()
+
+        middleware = APILoggerMiddleware(get_response=self.get_json_response)
+        request = self.factory.get('/api/test/', HTTP_X_REQUEST_ID='req-123')
+        middleware(request)
+
+        mock_thread.put_log_data.assert_called_once()
+        call_data = mock_thread.put_log_data.call_args[1]['data']
+        expected_keys = {
+            'api',
+            'headers',
+            'body',
+            'method',
+            'client_ip_address',
+            'response',
+            'status_code',
+            'execution_time',
+            'added_on',
+        }
+
+        self.assertEqual(set(call_data.keys()), expected_keys)
+        self.assertNotIn('correlation', call_data)
+        self.assertNotIn('low_cardinality', call_data)
+        self.assertNotIn('request_id', call_data)
+        self.assertNotIn('trace_id', call_data)
+        self.assertNotIn('tracing_id', call_data)
 
     @override_settings(DRF_API_LOGGER_SIGNAL=True, DRF_API_LOGGER_ENABLE_PROFILING=False)
     @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
@@ -218,3 +260,41 @@ class TestBackwardCompatSettings(TestCase):
         self.assertEqual(middleware.DRF_API_LOGGER_STATUS_CODES, [200])
         self.assertTrue(middleware.DRF_API_LOGGER_ENABLE_TRACING)
         self.assertFalse(middleware.DRF_API_LOGGER_ENABLE_PROFILING)
+
+
+@override_settings(DRF_API_LOGGER_DATABASE=True)
+class TestCorrelationNoPersistence(TestCase):
+
+    def test_model_has_no_correlation_storage_fields(self):
+        from drf_api_logger.models import APILogsModel
+
+        field_names = {field.name for field in APILogsModel._meta.fields}
+        blocked_fields = {
+            'request_id',
+            'trace_id',
+            'correlation',
+            'low_cardinality',
+            'route',
+            'view_name',
+            'actor_id',
+            'tenant_id',
+        }
+
+        self.assertFalse(field_names.intersection(blocked_fields))
+
+    def test_no_correlation_migration_added(self):
+        migrations_dir = Path(__file__).resolve().parents[1] / 'drf_api_logger' / 'migrations'
+        migration_names = {
+            path.name
+            for path in migrations_dir.glob('*.py')
+            if path.name != '__init__.py'
+        }
+
+        self.assertEqual(
+            migration_names,
+            {
+                '0001_initial.py',
+                '0002_auto_20211221_2155.py',
+                '0003_apilogsmodel_profiling.py',
+            }
+        )

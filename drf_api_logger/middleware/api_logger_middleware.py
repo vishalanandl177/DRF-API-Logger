@@ -11,6 +11,8 @@ from datetime import datetime
 
 from drf_api_logger import apps as logger_apps
 from drf_api_logger import API_LOGGER_SIGNAL
+from drf_api_logger.correlation import build_correlation_context, build_low_cardinality_metadata
+from drf_api_logger.logging_context import clear_correlation_context, set_correlation_context
 from drf_api_logger.utils import get_headers, get_client_ip, mask_sensitive_data
 
 
@@ -66,6 +68,24 @@ class APILoggerMiddleware:
             self.DRF_API_LOGGER_ENABLE_TRACING = settings.DRF_API_LOGGER_ENABLE_TRACING
             if self.DRF_API_LOGGER_ENABLE_TRACING and hasattr(settings, 'DRF_API_LOGGER_TRACING_ID_HEADER_NAME'):
                 self.DRF_API_LOGGER_TRACING_ID_HEADER_NAME = settings.DRF_API_LOGGER_TRACING_ID_HEADER_NAME
+
+        self.DRF_API_LOGGER_ENABLE_CORRELATION = False
+        if hasattr(settings, 'DRF_API_LOGGER_ENABLE_CORRELATION'):
+            self.DRF_API_LOGGER_ENABLE_CORRELATION = settings.DRF_API_LOGGER_ENABLE_CORRELATION
+
+        self.DRF_API_LOGGER_CORRELATION_REQUEST_ID_HEADERS = ['X-Request-ID', 'X-Correlation-ID']
+        if hasattr(settings, 'DRF_API_LOGGER_CORRELATION_REQUEST_ID_HEADERS'):
+            if type(settings.DRF_API_LOGGER_CORRELATION_REQUEST_ID_HEADERS) in (list, tuple):
+                self.DRF_API_LOGGER_CORRELATION_REQUEST_ID_HEADERS = settings.DRF_API_LOGGER_CORRELATION_REQUEST_ID_HEADERS
+
+        self.DRF_API_LOGGER_CORRELATION_TRACE_ID_HEADERS = ['traceparent', 'X-Trace-ID']
+        if hasattr(settings, 'DRF_API_LOGGER_CORRELATION_TRACE_ID_HEADERS'):
+            if type(settings.DRF_API_LOGGER_CORRELATION_TRACE_ID_HEADERS) in (list, tuple):
+                self.DRF_API_LOGGER_CORRELATION_TRACE_ID_HEADERS = settings.DRF_API_LOGGER_CORRELATION_TRACE_ID_HEADERS
+
+        self.DRF_API_LOGGER_ENABLE_LOGGING_CONTEXT = False
+        if hasattr(settings, 'DRF_API_LOGGER_ENABLE_LOGGING_CONTEXT'):
+            self.DRF_API_LOGGER_ENABLE_LOGGING_CONTEXT = settings.DRF_API_LOGGER_ENABLE_LOGGING_CONTEXT
 
         self.tracing_func_name = None
         if hasattr(settings, 'DRF_API_LOGGER_TRACING_FUNC'):
@@ -223,6 +243,22 @@ class APILoggerMiddleware:
             return True
         return random.random() < self.DRF_API_LOGGER_PROFILING_SAMPLE_RATE
 
+    def _attach_correlation_context(self, request, correlation_context):
+        low_cardinality = build_low_cardinality_metadata(correlation_context)
+        request.api_logger_correlation = correlation_context.copy()
+        request.api_logger_low_cardinality = low_cardinality.copy()
+
+        request_id = correlation_context.get('request_id')
+        trace_id = correlation_context.get('trace_id')
+        if request_id:
+            request.api_logger_request_id = request_id
+        if trace_id:
+            request.api_logger_trace_id = trace_id
+            if not hasattr(request, 'tracing_id'):
+                request.tracing_id = trace_id
+
+        return low_cardinality
+
     def __call__(self, request):
         # Skip logging for static and media files
         if self.is_static_or_media_request(request.path):
@@ -231,6 +267,7 @@ class APILoggerMiddleware:
         # Run only if logger is enabled.
         if self.DRF_API_LOGGER_DATABASE or self.DRF_API_LOGGER_SIGNAL:
 
+            resolver_match = None
             try:
                 resolver_match = resolve(request.path_info)
                 url_name = resolver_match.url_name
@@ -272,6 +309,21 @@ class APILoggerMiddleware:
 
             middleware_before_end = time.time()
 
+            correlation_context = {}
+            low_cardinality = {}
+            logging_context_set = False
+            if self.DRF_API_LOGGER_ENABLE_CORRELATION:
+                correlation_context = build_correlation_context(
+                    request=request,
+                    headers=headers,
+                    resolver_match=resolver_match,
+                    tracing_id=tracing_id,
+                )
+                low_cardinality = self._attach_correlation_context(request, correlation_context)
+                if self.DRF_API_LOGGER_ENABLE_LOGGING_CONTEXT:
+                    set_correlation_context(correlation_context)
+                    logging_context_set = True
+
             # Set up SQL tracking before calling the view
             profile_this_request = self._should_profile()
             sql_profiling_active = (
@@ -302,6 +354,8 @@ class APILoggerMiddleware:
                     finally:
                         connection.force_debug_cursor = original_force_debug_cursor
                         reset_queries()
+                if logging_context_set:
+                    clear_correlation_context()
 
             # Only log required status codes if matching
             if self.DRF_API_LOGGER_STATUS_CODES and response.status_code not in self.DRF_API_LOGGER_STATUS_CODES:
@@ -342,6 +396,16 @@ class APILoggerMiddleware:
                     added_on=current_time
                 )
 
+                if self.DRF_API_LOGGER_ENABLE_CORRELATION:
+                    correlation_context = build_correlation_context(
+                        request=request,
+                        headers=headers,
+                        resolver_match=resolver_match,
+                        status_code=response.status_code,
+                        tracing_id=tracing_id,
+                    )
+                    low_cardinality = self._attach_correlation_context(request, correlation_context)
+
                 middleware_after_end = time.time()
 
                 # Build profiling data if enabled
@@ -367,11 +431,17 @@ class APILoggerMiddleware:
                         d['profiling_data'] = json.dumps(d['profiling_data'], indent=4, ensure_ascii=False)
                     logger_apps.LOGGER_THREAD.put_log_data(data=d)
                 if self.DRF_API_LOGGER_SIGNAL:
+                    signal_data = data.copy()
                     if tracing_id:
-                        data.update({
+                        signal_data.update({
                             'tracing_id': tracing_id
                         })
-                    API_LOGGER_SIGNAL.listen(**data)
+                    if correlation_context:
+                        signal_data.update({
+                            'correlation': correlation_context.copy(),
+                            'low_cardinality': low_cardinality.copy(),
+                        })
+                    API_LOGGER_SIGNAL.listen(**signal_data)
             else:
                 return response
         else:

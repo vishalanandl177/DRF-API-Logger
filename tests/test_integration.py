@@ -97,6 +97,40 @@ class TestMiddlewareIntegration(TestCase):
 
     @override_settings(
         DRF_API_LOGGER_SIGNAL=True,
+        DRF_API_LOGGER_ENABLE_CORRELATION=True
+    )
+    def test_correlation_signal_integration_with_real_resolver(self):
+        """Test correlation metadata with the real Django URL resolver."""
+        API_LOGGER_SIGNAL.listen += self.signal_listener
+
+        try:
+            response = self.client.get(
+                '/api/test/',
+                HTTP_X_REQUEST_ID='req-integration-123',
+                HTTP_TRACEPARENT='00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01',
+            )
+            self.assertEqual(response.status_code, 200)
+
+            self.assertEqual(len(self.signal_data), 1)
+            signal_data = self.signal_data[0]
+            correlation = signal_data['correlation']
+            low_cardinality = signal_data['low_cardinality']
+
+            self.assertEqual(correlation['request_id'], 'req-integration-123')
+            self.assertEqual(correlation['trace_id'], '4bf92f3577b34da6a3ce929d0e0e4736')
+            self.assertEqual(correlation['route'], 'api/test/')
+            self.assertEqual(correlation['url_name'], 'test_api')
+            self.assertEqual(correlation['status_class'], '2xx')
+            self.assertEqual(low_cardinality['route'], 'api/test/')
+            self.assertEqual(low_cardinality['url_name'], 'test_api')
+            self.assertEqual(low_cardinality['status_class'], '2xx')
+            self.assertNotIn('request_id', low_cardinality)
+            self.assertNotIn('trace_id', low_cardinality)
+        finally:
+            API_LOGGER_SIGNAL.listen -= self.signal_listener
+
+    @override_settings(
+        DRF_API_LOGGER_SIGNAL=True,
         DRF_API_LOGGER_METHODS=['POST', 'PUT']
     )
     def test_method_filtering_integration(self):

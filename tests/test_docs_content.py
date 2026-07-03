@@ -59,6 +59,10 @@ class DocumentationContentTests(unittest.TestCase):
             "drf_api_logger_exclude_keys",
             "drf_api_logger_max_request_body_size",
             "drf_api_logger_max_response_body_size",
+            "drf_api_logger_enable_correlation",
+            "request.api_logger_correlation",
+            "low_cardinality",
+            "without database schema changes",
             "do not recommend custom logging middleware",
             "do not include real secrets",
         ]
@@ -112,6 +116,7 @@ class DocumentationContentTests(unittest.TestCase):
                 "Signal-Only Logging",
                 "Retention and Pruning",
                 "Request Tracing",
+                "Request Correlation Without New DB Columns",
             ],
             "docs/ai_readiness.rst": [
                 "Prompt Examples",
@@ -131,7 +136,16 @@ class DocumentationContentTests(unittest.TestCase):
                 "Mask Secrets",
                 "Schedule Retention",
                 "Debug with Trace IDs",
+                "Correlate Logs Without Persisting IDs",
                 "Community Snippets",
+            ],
+            "docs/operations.rst": [
+                "Request Correlation Operations",
+                "queued database log rows keep the existing payload shape",
+            ],
+            "docs/compliance.rst": [
+                "Request Correlation Controls",
+                "does not add migrations",
             ],
         }
 
