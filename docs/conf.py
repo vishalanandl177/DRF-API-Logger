@@ -19,6 +19,9 @@ napoleon_use_ivar = True
 
 html_theme = 'sphinx_rtd_theme'
 
+html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "/")
+html_extra_path = ["../llms.txt"]
+
 pygments_style = 'sphinx'
 
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
