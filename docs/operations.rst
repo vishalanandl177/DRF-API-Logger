@@ -128,6 +128,24 @@ Recommended operating pattern:
   inside the view should include the same request correlation metadata.
 - Return only opaque IDs from ``DRF_API_LOGGER_CORRELATION_CONTEXT_FUNC``.
 
+Observability Integration Operations
+------------------------------------
+
+DRF API Logger observability helpers are adapters for signal payloads. The
+application remains responsible for exporter setup, scrape endpoints, collector
+configuration, Sentry initialization, and access control.
+
+Recommended operating pattern:
+
+- Expose Prometheus metrics from the application using its existing metrics
+  endpoint.
+- Use only low-cardinality labels from ``low_cardinality`` plus HTTP method.
+- Add trace or request IDs to logs and spans only when the observability policy
+  permits high-cardinality attributes.
+- Keep request and response payloads out of metrics, traces, and Sentry context.
+- Skip health checks and metrics endpoints with ``DRF_API_LOGGER_SKIP_URL_NAME``
+  or ``DRF_API_LOGGER_SKIP_NAMESPACE``.
+
 Database Indexes
 ----------------
 

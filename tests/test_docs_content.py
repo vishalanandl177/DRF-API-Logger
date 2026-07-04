@@ -33,6 +33,7 @@ class DocumentationContentTests(unittest.TestCase):
 
         expected_toctree_entries = [
             "quickstart",
+            "observability_integrations",
             "ai_readiness",
             "comparison_and_migration",
             "tutorials",
@@ -117,6 +118,13 @@ class DocumentationContentTests(unittest.TestCase):
                 "Retention and Pruning",
                 "Request Tracing",
                 "Request Correlation Without New DB Columns",
+                "Safe Observability Integrations",
+            ],
+            "docs/observability_integrations.rst": [
+                "Prometheus Metrics",
+                "OpenTelemetry Span Attributes",
+                "Sentry Error Context",
+                "Safety Rules",
             ],
             "docs/ai_readiness.rst": [
                 "Prompt Examples",
@@ -141,10 +149,12 @@ class DocumentationContentTests(unittest.TestCase):
             ],
             "docs/operations.rst": [
                 "Request Correlation Operations",
+                "Observability Integration Operations",
                 "queued database log rows keep the existing payload shape",
             ],
             "docs/compliance.rst": [
                 "Request Correlation Controls",
+                "Observability Export Controls",
                 "does not add migrations",
             ],
         }
@@ -160,6 +170,7 @@ class DocumentationContentTests(unittest.TestCase):
             "README.md",
             "llms.txt",
             "docs/quickstart.rst",
+            "docs/observability_integrations.rst",
             "docs/ai_readiness.rst",
             "docs/comparison_and_migration.rst",
             "docs/tutorials.rst",
@@ -192,6 +203,28 @@ class DocumentationContentTests(unittest.TestCase):
         for identity in direct_identity_examples:
             with self.subTest(identity=identity):
                 self.assertNotIn(identity, tutorials)
+
+    def test_observability_docs_cover_safe_integrations(self):
+        docs_root = ROOT / "docs"
+        guide = docs_root.joinpath("observability_integrations.rst").read_text(encoding="utf-8")
+        index = docs_root.joinpath("index.rst").read_text(encoding="utf-8")
+        readme = ROOT.joinpath("README.md").read_text(encoding="utf-8")
+        llms = ROOT.joinpath("llms.txt").read_text(encoding="utf-8")
+
+        for content in (guide, readme, llms):
+            self.assertIn("Prometheus", content)
+            self.assertIn("OpenTelemetry", content)
+            self.assertIn("Sentry", content)
+            self.assertIn("low-cardinality", content)
+            self.assertIn("record_prometheus_metrics", content)
+            self.assertIn("annotate_opentelemetry_span", content)
+            self.assertIn("configure_sentry_scope", content)
+
+        self.assertIn("observability_integrations", index)
+        self.assertIn("request_id", guide)
+        self.assertIn("trace_id", guide)
+        self.assertIn("not metrics labels", guide)
+        self.assertIn("Do not put request IDs", llms)
 
 
 if __name__ == "__main__":

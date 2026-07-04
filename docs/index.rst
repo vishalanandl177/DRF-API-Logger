@@ -23,6 +23,7 @@ profile SQL-heavy endpoints when enabled.
    :hidden:
 
    quickstart
+   observability_integrations
    ai_readiness
    comparison_and_migration
    tutorials
@@ -41,6 +42,7 @@ Key Features
 - Built-in admin dashboard with charts and performance metrics
 - Per-request API profiling with auto-diagnosis of bottlenecks
 - Request correlation through request attributes, logging context, and signals
+- Optional Prometheus, OpenTelemetry, and Sentry helper functions with safe defaults
 
 
 Supported Versions

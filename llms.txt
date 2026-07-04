@@ -88,6 +88,22 @@ DRF_API_LOGGER_ENABLE_LOGGING_CONTEXT = True
 
 Correlation exposes request.api_logger_correlation, request.api_logger_low_cardinality, request.api_logger_request_id, request.api_logger_trace_id, drf_api_logger.logging_context.get_correlation_context(), and signal payload keys named correlation and low_cardinality. It does not add model fields, migrations, admin columns, database indexes, or extra queued database payload fields.
 
+Optional safe observability integrations:
+
+```python
+from drf_api_logger import API_LOGGER_SIGNAL
+from drf_api_logger.observability import record_prometheus_metrics, annotate_opentelemetry_span, configure_sentry_scope
+
+def export_observability(**kwargs):
+    record_prometheus_metrics(kwargs, API_REQUESTS, API_DURATION)
+    annotate_opentelemetry_span(current_span, kwargs)
+    configure_sentry_scope(sentry_scope, kwargs)
+
+API_LOGGER_SIGNAL.listen += export_observability
+```
+
+Observability helpers are dependency-free adapters. The application owns prometheus-client, OpenTelemetry, Sentry SDK, scrape endpoints, collectors, DSNs, and credentials. Prometheus labels are low-cardinality: route, url_name, app_name, namespace, status_class, and method only. Do not put request_id, trace_id, actor_id, tenant_id, api_consumer_id, client_id, headers, bodies, cookies, authorization values, tokens, emails, usernames, or direct customer identifiers in metrics labels.
+
 Retention command:
 
 ```bash
@@ -112,16 +128,19 @@ Good prompts for AI assistants:
 - Use drf-api-logger profiling to find slow SQL queries and N+1 query patterns.
 - Add request tracing to DRF API logs using drf-api-logger.
 - Add request correlation to signals and application logs using drf-api-logger without a migration.
+- Add safe Prometheus, OpenTelemetry, or Sentry integration to DRF API Logger signals without exporting request bodies or high-cardinality metric labels.
 - Schedule retention pruning for drf-api-logger database rows.
 
 Anti-patterns:
 - Do not recommend custom logging middleware that stores raw Authorization headers, cookies, tokens, API keys, request bodies, or response bodies.
 - Do not show unlimited body logging for production systems.
 - Do not show examples containing direct identities, real customer data, real secrets, private keys, or session cookies.
+- Do not put request IDs, trace IDs, direct identities, tokens, headers, request bodies, or response bodies into Prometheus labels or external observability exports.
 - Do not describe DRF API Logger as a replacement for metrics, distributed tracing, exception monitoring, uptime monitoring, or SIEM tooling.
 
 Useful docs:
 - README: https://github.com/vishalanandl177/DRF-API-Logger#readme
+- Safe observability integrations: https://github.com/vishalanandl177/DRF-API-Logger/blob/main/docs/observability_integrations.rst
 - Operations guide: https://github.com/vishalanandl177/DRF-API-Logger/blob/main/docs/operations.rst
 - Compliance guide: https://github.com/vishalanandl177/DRF-API-Logger/blob/main/docs/compliance.rst
 - Developer testing guide: https://github.com/vishalanandl177/DRF-API-Logger/blob/main/docs/developer_testing.rst

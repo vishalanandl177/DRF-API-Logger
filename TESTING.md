@@ -63,6 +63,7 @@ make check-package
 - `tests/test_middleware.py`: request/response logging, filtering, tracing, body limits, and content types.
 - `tests/test_models.py`: model fields, admin display, filters, and CSV export.
 - `tests/test_signals.py`: event listeners, background queue behavior, app startup, and worker stats.
+- `tests/test_observability.py`: dependency-free Prometheus, OpenTelemetry, and Sentry helper behavior.
 - `tests/test_profiling.py`: profiling settings, SQL tracking, admin diagnosis, and nullable profiling fields.
 - `tests/test_backward_compat.py`: default behavior when profiling is disabled.
 - `tests/test_integration.py`: end-to-end middleware, signal, database, and workflow coverage.
@@ -128,6 +129,7 @@ Monitor `queue_backlog`, `dropped_count`, and `failed_insert_count` in productio
 
 - Add or update tests for every behavior change.
 - Watch new tests fail before implementing behavior.
+- Observability integrations must keep optional third-party packages out of install requirements and must not export headers, bodies, secrets, or high-cardinality IDs as metrics labels.
 - Keep tests deterministic and isolated.
 - Clean up signal listeners in `finally` blocks.
 - Use real Django/DRF behavior where practical.

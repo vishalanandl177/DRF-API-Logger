@@ -81,6 +81,18 @@ For privacy-sensitive deployments:
 - Do not return names, emails, tokens, session IDs, or regulated identifiers
   from ``DRF_API_LOGGER_CORRELATION_CONTEXT_FUNC``.
 
+Observability Export Controls
+-----------------------------
+
+When exporting DRF API Logger signal data to observability systems:
+
+- Send only ``low_cardinality`` values to metrics labels.
+- Do not export headers, request bodies, response bodies, authorization values,
+  cookies, tokens, emails, usernames, or direct customer identifiers.
+- Use request IDs and trace IDs only as operational correlation IDs.
+- Use Sentry context for debugging metadata, not payload storage.
+- Keep external exporter credentials outside DRF API Logger settings.
+
 Storage Controls
 ----------------
 
