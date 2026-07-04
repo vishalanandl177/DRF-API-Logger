@@ -63,6 +63,7 @@ make check-package
 - `tests/test_middleware.py`: request/response logging, filtering, tracing, body limits, and content types.
 - `tests/test_models.py`: model fields, admin display, filters, and CSV export.
 - `tests/test_signals.py`: event listeners, background queue behavior, app startup, and worker stats.
+- `tests/test_diagnostics.py`: production doctor checks for logging mode, database readiness, queue status, payload limits, masking, and profiling risk.
 - `tests/test_observability.py`: dependency-free Prometheus, OpenTelemetry, and Sentry helper behavior.
 - `tests/test_policy.py`: logging policy decisions, endpoint rules, callable overrides, extra mask keys, and safe failure behavior.
 - `tests/test_profiling.py`: profiling settings, SQL tracking, admin diagnosis, and nullable profiling fields.
@@ -114,6 +115,14 @@ Retention command:
 ```bash
 python manage.py prune_api_logs --days 30 --dry-run
 python manage.py prune_api_logs --days 30 --batch-size 1000
+```
+
+Production diagnostics:
+
+```bash
+python manage.py drf_api_logger_doctor
+python manage.py drf_api_logger_doctor --format json
+python manage.py drf_api_logger_doctor --fail-level warning
 ```
 
 Queue health check:

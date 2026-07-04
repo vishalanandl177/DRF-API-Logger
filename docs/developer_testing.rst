@@ -88,6 +88,9 @@ Add or update tests for every behavior change. Cover the touched surface:
   label prevention.
 - Policy gate behavior for full log drops, metadata-only logging, extra mask
   keys, signal/export gating, safe failures, and default backward compatibility.
+- Production diagnostics and doctor command behavior, including JSON output,
+  fail-level behavior, database readiness, queue health, payload limits,
+  masking, and profiling risk.
 - Background queue flushing, stats, shutdown, and database alias handling.
 - Admin display, filters, CSV export, and profiling diagnosis.
 - Management commands such as ``prune_api_logs``.
@@ -102,6 +105,14 @@ Retention command:
 
    python manage.py prune_api_logs --days 30 --dry-run
    python manage.py prune_api_logs --days 30 --batch-size 1000
+
+Production diagnostics:
+
+.. code-block:: bash
+
+   python manage.py drf_api_logger_doctor
+   python manage.py drf_api_logger_doctor --format json
+   python manage.py drf_api_logger_doctor --fail-level warning
 
 Queue health:
 
