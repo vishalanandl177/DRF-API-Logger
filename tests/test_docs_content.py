@@ -268,6 +268,40 @@ class DocumentationContentTests(unittest.TestCase):
         self.assertIn("tests/test_diagnostics.py", testing)
         self.assertIn("Production diagnostics", developer_testing)
 
+    def test_asgi_native_logging_is_documented(self):
+        index = read_text("docs/index.rst")
+        guide = read_text("docs/asgi.rst")
+        overhead_script = read_text("scripts/measure_asgi_overhead.py")
+        readme = read_text("README.md")
+        quickstart = read_text("docs/quickstart.rst")
+        operations = read_text("docs/operations.rst")
+        testing = read_text("TESTING.md")
+        developer_testing = read_text("docs/developer_testing.rst")
+        developer_testing_md = read_text("docs/DEVELOPER_TESTING.md")
+
+        self.assertIsNotNone(
+            re.search(r"^\s+asgi\s*$", index, re.MULTILINE),
+            "asgi is missing from docs/index.rst toctree",
+        )
+
+        for phrase in (
+            "ASGI-native logging",
+            "sync deployments remain backward compatible",
+            "contextvars",
+            "AsyncClient",
+            "tests/test_asgi_middleware.py",
+            "scripts/measure_asgi_overhead.py",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, guide)
+
+        self.assertIn("AsyncClient", overhead_script)
+        self.assertIn("sync", overhead_script)
+        self.assertIn("asgi", overhead_script.lower())
+
+        for content in (readme, quickstart, operations, testing, developer_testing, developer_testing_md):
+            self.assertIn("ASGI", content)
+
 
 if __name__ == "__main__":
     unittest.main()

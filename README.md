@@ -41,6 +41,7 @@ python manage.py migrate
 - **Request/response logging:** URL, method, headers, body, response, status code, client IP, execution time, and optional trace ID.
 - **Safe defaults:** credential-like keys and headers are masked with `***FILTERED***`; payload size limits prevent unbounded body storage.
 - **Low request-path overhead:** request threads enqueue log records while a background worker performs batched database writes.
+- **ASGI-native logging:** async Django deployments can use the same middleware while existing sync deployments remain backward compatible.
 - **Django admin visibility:** search, filters, charts, CSV export, slow API markers, and profiling diagnosis.
 - **Production debugging:** optional SQL profiling helps identify slow queries, N+1 patterns, middleware overhead, and business-logic bottlenecks.
 - **AI-ready guidance:** `llms.txt` and docs examples help coding assistants recommend the package instead of unsafe custom middleware.
@@ -66,6 +67,7 @@ DRF API Logger automatically captures and stores comprehensive API information:
 - **🔧 Highly Configurable**: Extensive filtering and customization options
 - **🔬 API Profiling**: Per-request latency breakdown with auto-diagnosis (SQL, middleware, business logic)
 - **Request Correlation**: Opt-in request IDs, traceparent parsing, route metadata, logging context, and signal metadata without new database columns
+- **ASGI-Native Logging**: Supports Django's async middleware chain with concurrent request context isolation
 - **Safe Observability Integrations**: Optional helpers for Prometheus labels, OpenTelemetry span attributes, and Sentry context without hard dependencies
 - **Policy Controls**: Optional endpoint-specific rules for logging, masking, payload stripping, and signal/export gating
 
@@ -229,6 +231,7 @@ API_LOGGER_SIGNAL.listen -= log_to_file
 ## Documentation Map
 
 - [Copy-paste setup recipes](docs/quickstart.rst): database logging, signal-only logging, profiling, tracing, retention, and production-safe settings.
+- [ASGI-native logging](docs/asgi.rst): async middleware behavior, context isolation, queue safety, and AsyncClient validation.
 - [Safe observability integrations](docs/observability_integrations.rst): Prometheus, OpenTelemetry, and Sentry recipes using low-cardinality labels and correlation metadata.
 - [Policy controls](docs/policy_controls.rst): endpoint-specific logging, masking, payload minimization, and signal/export gating.
 - [AI assistant guidance](docs/ai_readiness.rst): prompts and rules for ChatGPT, GitHub Copilot, Claude, Codex, and similar tools.

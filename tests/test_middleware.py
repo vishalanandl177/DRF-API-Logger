@@ -46,6 +46,16 @@ class TestAPILoggerMiddleware(TestCase):
         self.assertEqual(middleware.DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE, 32768)
         self.assertEqual(middleware.DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE, 65536)
 
+    @override_settings(DRF_API_LOGGER_DATABASE=False, DRF_API_LOGGER_SIGNAL=False)
+    def test_sync_logger_disabled_bypasses_logging_setup(self):
+        """Test disabled logging still returns the response."""
+        middleware = APILoggerMiddleware(get_response=self.get_response)
+        request = self.factory.get('/api/test/')
+
+        response = middleware(request)
+
+        self.assertEqual(response.status_code, 200)
+
     @override_settings(DRF_API_LOGGER_DATABASE=True)
     def test_middleware_with_database_enabled(self):
         """Test middleware when database logging is enabled"""
@@ -355,6 +365,36 @@ class TestAPILoggerMiddleware(TestCase):
 
     @override_settings(
         DRF_API_LOGGER_SIGNAL=True,
+        DRF_API_LOGGER_ENABLE_PROFILING=True,
+        DRF_API_LOGGER_PROFILING_SAMPLE_RATE=0.5
+    )
+    @patch('drf_api_logger.middleware.api_logger_middleware.random.random', return_value=0.1)
+    @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
+    def test_profiling_sample_rate_uses_random_sampling(self, mock_resolve, mock_random):
+        """Test fractional profiling sample rates use random sampling."""
+        mock_resolve.return_value.namespace = None
+        mock_resolve.return_value.url_name = 'test'
+
+        signal_data = []
+        from drf_api_logger import API_LOGGER_SIGNAL
+
+        def listener(**kwargs):
+            signal_data.append(kwargs)
+
+        API_LOGGER_SIGNAL.listen += listener
+        try:
+            middleware = APILoggerMiddleware(get_response=self.get_response)
+            request = self.factory.get('/api/test/')
+            response = middleware(request)
+
+            self.assertEqual(response.status_code, 200)
+            self.assertIn('profiling_data', signal_data[0])
+            mock_random.assert_called_once()
+        finally:
+            API_LOGGER_SIGNAL.listen -= listener
+
+    @override_settings(
+        DRF_API_LOGGER_SIGNAL=True,
         DRF_API_LOGGER_ENABLE_CORRELATION=True,
         DRF_API_LOGGER_ENABLE_LOGGING_CONTEXT=True
     )
@@ -465,6 +505,76 @@ class TestAPILoggerMiddleware(TestCase):
         middleware = APILoggerMiddleware(get_response=self.get_response)
         self.assertEqual(middleware.DRF_API_LOGGER_PATH_TYPE, 'RAW_URI')
 
+    @override_settings(
+        DRF_API_LOGGER_DATABASE=False,
+        DRF_API_LOGGER_SIGNAL=True,
+        DRF_API_LOGGER_PATH_TYPE='RAW_URI'
+    )
+    @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
+    def test_path_type_raw_uri_logs_with_request_raw_uri(self, mock_resolve):
+        """Test RAW_URI uses the sync request raw URI method when available."""
+        mock_resolve.return_value.namespace = None
+        mock_resolve.return_value.url_name = 'test'
+
+        from drf_api_logger import API_LOGGER_SIGNAL
+        signal_data = []
+
+        def listener(**kwargs):
+            signal_data.append(kwargs)
+
+        API_LOGGER_SIGNAL.listen += listener
+        try:
+            middleware = APILoggerMiddleware(get_response=self.get_response)
+            request = self.factory.get('/api/test/?token=query-secret')
+            response = middleware(request)
+
+            self.assertEqual(response.status_code, 200)
+            self.assertIn('/api/test/?token=***FILTERED***', signal_data[0]['api'])
+        finally:
+            API_LOGGER_SIGNAL.listen -= listener
+
+    @override_settings(DRF_API_LOGGER_PATH_TYPE='RAW_URI')
+    def test_raw_uri_helper_uses_request_get_raw_uri_when_available(self):
+        """Test RAW_URI keeps using request.get_raw_uri for sync requests."""
+        middleware = APILoggerMiddleware(get_response=self.get_response)
+
+        class RequestWithRawUri:
+            def get_raw_uri(self):
+                return 'raw://example.test/api/test/?token=query-secret'
+
+        self.assertEqual(
+            middleware._request_api(RequestWithRawUri()),
+            'raw://example.test/api/test/?token=query-secret',
+        )
+
+    @override_settings(
+        DRF_API_LOGGER_DATABASE=False,
+        DRF_API_LOGGER_SIGNAL=True,
+        USE_TZ=False
+    )
+    @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
+    def test_added_on_uses_naive_datetime_when_use_tz_false(self, mock_resolve):
+        """Test USE_TZ=False keeps backward-compatible naive timestamps."""
+        mock_resolve.return_value.namespace = None
+        mock_resolve.return_value.url_name = 'test'
+
+        from drf_api_logger import API_LOGGER_SIGNAL
+        signal_data = []
+
+        def listener(**kwargs):
+            signal_data.append(kwargs)
+
+        API_LOGGER_SIGNAL.listen += listener
+        try:
+            middleware = APILoggerMiddleware(get_response=self.get_response)
+            request = self.factory.get('/api/test/')
+            response = middleware(request)
+
+            self.assertEqual(response.status_code, 200)
+            self.assertIsNone(signal_data[0]['added_on'].tzinfo)
+        finally:
+            API_LOGGER_SIGNAL.listen -= listener
+
     def test_json_request_body_parsing(self):
         """Test parsing of JSON request body"""
         request = self.factory.post('/api/test/',
@@ -472,6 +582,46 @@ class TestAPILoggerMiddleware(TestCase):
                                    content_type='application/json')
         response = self.middleware(request)
         self.assertEqual(response.status_code, 200)
+
+    def test_body_decoding_defensive_edges(self):
+        """Test body decoding handles malformed and inaccessible bodies."""
+        middleware = APILoggerMiddleware(get_response=self.get_response)
+
+        class RequestWithUnreadableBody:
+            META = {'CONTENT_TYPE': 'application/json'}
+
+            @property
+            def body(self):
+                raise RuntimeError('body unavailable')
+
+        class ResponseWithUnreadableContent:
+            streaming = False
+
+            def get(self, key):
+                return 'application/json'
+
+            @property
+            def content(self):
+                raise RuntimeError('content unavailable')
+
+        self.assertEqual(
+            middleware._decode_body('plain request', -1, 'Request body', 'text/plain'),
+            'plain request',
+        )
+        self.assertEqual(
+            middleware._decode_body(b'\xff', -1, 'Request body', 'application/json'),
+            '',
+        )
+        self.assertEqual(
+            middleware._decode_body(b'not-json', -1, 'Request body', 'application/json'),
+            '',
+        )
+        self.assertEqual(
+            middleware._decode_body(b'not-json', -1, 'Request body', 'application/octet-stream'),
+            '',
+        )
+        self.assertEqual(middleware._get_request_data(RequestWithUnreadableBody()), '')
+        self.assertEqual(middleware._get_response_body(ResponseWithUnreadableContent()), '')
 
     def test_non_json_request_body(self):
         """Test handling of non-JSON request body"""

@@ -6,6 +6,7 @@ This directory contains the package test suite.
 
 - `test_utils.py`: utility helpers, masking, headers, and settings.
 - `test_middleware.py`: middleware configuration, filtering, tracing, content handling, and body limits.
+- `test_asgi_middleware.py`: ASGI middleware capability, AsyncClient integration, async logging, and context isolation.
 - `test_models.py`: database model and Django admin behavior.
 - `test_signals.py`: event listeners, background queue processing, app startup, and worker stats.
 - `test_profiling.py`: profiling settings, SQL tracking, admin display, and diagnosis rules.

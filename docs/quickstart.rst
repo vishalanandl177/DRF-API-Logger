@@ -196,6 +196,32 @@ Prometheus labels are limited to route, URL name, app name, namespace, status
 class, and method. Request IDs and trace IDs are available for logs, traces, and
 Sentry context, not metrics labels.
 
+ASGI-Native Logging
+-------------------
+
+Use the same middleware path for WSGI, sync Django, and ASGI deployments:
+
+.. code-block:: python
+
+   MIDDLEWARE = [
+       # ...
+       "drf_api_logger.middleware.api_logger_middleware.APILoggerMiddleware",
+   ]
+
+The middleware is both sync-capable and async-capable. In ASGI mode it awaits
+Django's async ``get_response`` callable directly, while sync deployments remain
+backward compatible. Enable correlation when concurrent async requests need
+isolated request IDs or trace IDs:
+
+.. code-block:: python
+
+   DRF_API_LOGGER_SIGNAL = True
+   DRF_API_LOGGER_ENABLE_CORRELATION = True
+   DRF_API_LOGGER_ENABLE_LOGGING_CONTEXT = True
+
+Validate ASGI behavior with ``tests/test_asgi_middleware.py`` or an application
+``AsyncClient`` smoke test. See :doc:`asgi` for the full checklist.
+
 Policy Controls
 ---------------
 
