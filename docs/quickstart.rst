@@ -196,6 +196,25 @@ Prometheus labels are limited to route, URL name, app name, namespace, status
 class, and method. Request IDs and trace IDs are available for logs, traces, and
 Sentry context, not metrics labels.
 
+Policy Controls
+---------------
+
+Use policy controls for endpoint-specific logging decisions:
+
+.. code-block:: python
+
+   DRF_API_LOGGER_POLICY = {
+       "rules": [
+           {"url_name": "health_check", "log": False},
+           {
+               "route": "api/payments/",
+               "request_body": False,
+               "response_body": False,
+               "mask_keys": ["card_number", "payment_token"],
+           },
+       ],
+   }
+
 Retention and Pruning
 ---------------------
 

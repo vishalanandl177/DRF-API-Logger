@@ -277,6 +277,55 @@ class TestMiddlewareIntegration(TestCase):
         finally:
             API_LOGGER_SIGNAL.listen -= self.signal_listener
 
+    @override_settings(
+        DRF_API_LOGGER_SIGNAL=True,
+        DRF_API_LOGGER_POLICY={
+            "rules": [
+                {"url_name": "test_api", "log": False, "reason": "skip_test_api"},
+            ]
+        }
+    )
+    def test_policy_skip_uses_real_url_resolver(self):
+        API_LOGGER_SIGNAL.listen += self.signal_listener
+
+        try:
+            response = self.client.get('/api/test/')
+
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(self.signal_data, [])
+        finally:
+            API_LOGGER_SIGNAL.listen -= self.signal_listener
+
+    @override_settings(
+        DRF_API_LOGGER_SIGNAL=True,
+        DRF_API_LOGGER_POLICY={
+            "rules": [
+                {
+                    "url_name": "test_api",
+                    "mask_keys": ["email"],
+                    "reason": "mask_email_on_test_api",
+                },
+            ]
+        }
+    )
+    def test_policy_masking_uses_real_url_resolver(self):
+        API_LOGGER_SIGNAL.listen += self.signal_listener
+
+        try:
+            response = self.client.post(
+                '/api/test/?email=developer@example.invalid',
+                data={"email": "developer@example.invalid", "safe": "visible"},
+                format='json',
+            )
+
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(self.signal_data), 1)
+            self.assertEqual(self.signal_data[0]['body']['email'], '***FILTERED***')
+            self.assertIn('email=***FILTERED***', self.signal_data[0]['api'])
+            self.assertEqual(self.signal_data[0]['policy']['reason'], 'mask_email_on_test_api')
+        finally:
+            API_LOGGER_SIGNAL.listen -= self.signal_listener
+
 
 @override_settings(DRF_API_LOGGER_DATABASE=True)
 class TestDatabaseIntegration(TestCase):

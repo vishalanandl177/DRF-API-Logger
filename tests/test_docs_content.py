@@ -34,6 +34,7 @@ class DocumentationContentTests(unittest.TestCase):
         expected_toctree_entries = [
             "quickstart",
             "observability_integrations",
+            "policy_controls",
             "ai_readiness",
             "comparison_and_migration",
             "tutorials",
@@ -126,6 +127,13 @@ class DocumentationContentTests(unittest.TestCase):
                 "Sentry Error Context",
                 "Safety Rules",
             ],
+            "docs/policy_controls.rst": [
+                "Endpoint Skip",
+                "Payload Minimization",
+                "Endpoint-Specific Masking",
+                "Signal And Export Gate",
+                "Safe Failure Behavior",
+            ],
             "docs/ai_readiness.rst": [
                 "Prompt Examples",
                 "Safe Recommendation Rules",
@@ -171,6 +179,7 @@ class DocumentationContentTests(unittest.TestCase):
             "llms.txt",
             "docs/quickstart.rst",
             "docs/observability_integrations.rst",
+            "docs/policy_controls.rst",
             "docs/ai_readiness.rst",
             "docs/comparison_and_migration.rst",
             "docs/tutorials.rst",
@@ -225,6 +234,22 @@ class DocumentationContentTests(unittest.TestCase):
         self.assertIn("trace_id", guide)
         self.assertIn("not metrics labels", guide)
         self.assertIn("Do not put request IDs", llms)
+
+    def test_policy_docs_cover_safe_logging_controls(self):
+        guide = read_text("docs/policy_controls.rst")
+        readme = read_text("README.md")
+        llms = read_text("llms.txt")
+
+        for content in (guide, readme, llms):
+            self.assertIn("DRF_API_LOGGER_POLICY", content)
+            self.assertIn("log", content)
+            self.assertIn("mask_keys", content)
+            self.assertIn("signal", content)
+
+        self.assertIn("request_body", guide)
+        self.assertIn("response_body", guide)
+        self.assertIn("Safe Failure Behavior", guide)
+        self.assertIn("Do not put secrets", llms)
 
 
 if __name__ == "__main__":

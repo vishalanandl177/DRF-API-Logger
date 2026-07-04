@@ -33,16 +33,18 @@ def _normalize_sensitive_key(key):
     return str(key).strip().lower().replace('-', '_')
 
 
-def _get_sensitive_keys():
+def _get_sensitive_keys(extra_sensitive_keys=None):
     keys = list(SENSITIVE_KEYS)
     if hasattr(settings, 'DRF_API_LOGGER_EXCLUDE_KEYS'):
         if type(settings.DRF_API_LOGGER_EXCLUDE_KEYS) in (list, tuple):
             keys.extend(settings.DRF_API_LOGGER_EXCLUDE_KEYS)
+    if type(extra_sensitive_keys) in (list, tuple):
+        keys.extend(extra_sensitive_keys)
     return {_normalize_sensitive_key(key) for key in keys}
 
 
-def _is_sensitive_key(key):
-    return _normalize_sensitive_key(key) in _get_sensitive_keys()
+def _is_sensitive_key(key, extra_sensitive_keys=None):
+    return _normalize_sensitive_key(key) in _get_sensitive_keys(extra_sensitive_keys)
 
 
 def get_headers(request=None):
@@ -135,7 +137,7 @@ def profiling_enabled():
     return drf_api_logger_profiling
 
 
-def mask_sensitive_data(data, mask_api_parameters=False):
+def mask_sensitive_data(data, mask_api_parameters=False, extra_sensitive_keys=None):
     """
     Masks or removes sensitive data such as passwords or tokens from dictionaries or URL strings.
 
@@ -146,6 +148,9 @@ def mask_sensitive_data(data, mask_api_parameters=False):
     mask_api_parameters : bool
         If True, applies masking to query parameters in a string (URL format).
         Otherwise, it recursively filters keys from dictionaries/lists.
+    extra_sensitive_keys : list, tuple
+        Additional key names to mask for this single call. This does not mutate
+        global settings or module-level sensitive keys.
 
     Returns:
     --------
@@ -157,7 +162,7 @@ def mask_sensitive_data(data, mask_api_parameters=False):
         if mask_api_parameters and type(data) is str:
             def replace_param(match):
                 separator, key, value = match.groups()
-                if _is_sensitive_key(key):
+                if _is_sensitive_key(key, extra_sensitive_keys):
                     return '{}{}={}'.format(separator, key, FILTERED_VALUE)
                 return '{}{}={}'.format(separator, key, value)
 
@@ -165,20 +170,35 @@ def mask_sensitive_data(data, mask_api_parameters=False):
 
         # If it's a list, sanitize each item recursively
         if type(data) is list:
-            data = [mask_sensitive_data(item) for item in data]
+            data = [
+                mask_sensitive_data(
+                    item,
+                    extra_sensitive_keys=extra_sensitive_keys,
+                )
+                for item in data
+            ]
         return data
 
     # Process each key-value pair in the dictionary
     masked_data = {}
     for key, value in data.items():
-        if _is_sensitive_key(key):
+        if _is_sensitive_key(key, extra_sensitive_keys):
             masked_data[key] = FILTERED_VALUE  # Mask sensitive keys
 
         elif type(value) is dict:
-            masked_data[key] = mask_sensitive_data(value)  # Recurse into nested dict
+            masked_data[key] = mask_sensitive_data(
+                value,
+                extra_sensitive_keys=extra_sensitive_keys,
+            )  # Recurse into nested dict
 
         elif type(value) is list:
-            masked_data[key] = [mask_sensitive_data(item) for item in value]  # Recurse into list
+            masked_data[key] = [
+                mask_sensitive_data(
+                    item,
+                    extra_sensitive_keys=extra_sensitive_keys,
+                )
+                for item in value
+            ]  # Recurse into list
 
         else:
             masked_data[key] = value

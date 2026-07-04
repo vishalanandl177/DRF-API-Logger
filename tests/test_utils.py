@@ -255,6 +255,32 @@ class TestUtilityFunctions(TestCase):
         self.assertEqual(masked['password'], '***FILTERED***')
         self.assertEqual(masked['normal_field'], 'not_masked')
 
+    def test_mask_sensitive_data_accepts_extra_sensitive_keys(self):
+        data = {
+            "email": "developer@example.invalid",
+            "account_id": "acct-123",
+            "safe": "visible",
+        }
+
+        masked = mask_sensitive_data(data, extra_sensitive_keys=["email", "account_id"])
+
+        self.assertEqual(masked["email"], "***FILTERED***")
+        self.assertEqual(masked["account_id"], "***FILTERED***")
+        self.assertEqual(masked["safe"], "visible")
+        self.assertEqual(data["email"], "developer@example.invalid")
+
+    def test_mask_sensitive_data_url_accepts_extra_sensitive_keys(self):
+        url = "https://api.example.invalid/payments?email=developer@example.invalid&safe=1"
+
+        masked = mask_sensitive_data(
+            url,
+            mask_api_parameters=True,
+            extra_sensitive_keys=["email"],
+        )
+
+        self.assertIn("email=***FILTERED***", masked)
+        self.assertIn("safe=1", masked)
+
     def test_sensitive_keys_default(self):
         """Test default sensitive keys"""
         expected_keys = [

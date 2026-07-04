@@ -67,6 +67,7 @@ DRF API Logger automatically captures and stores comprehensive API information:
 - **🔬 API Profiling**: Per-request latency breakdown with auto-diagnosis (SQL, middleware, business logic)
 - **Request Correlation**: Opt-in request IDs, traceparent parsing, route metadata, logging context, and signal metadata without new database columns
 - **Safe Observability Integrations**: Optional helpers for Prometheus labels, OpenTelemetry span attributes, and Sentry context without hard dependencies
+- **Policy Controls**: Optional endpoint-specific rules for logging, masking, payload stripping, and signal/export gating
 
 ### 🌐 Community & Support
 
@@ -229,6 +230,7 @@ API_LOGGER_SIGNAL.listen -= log_to_file
 
 - [Copy-paste setup recipes](docs/quickstart.rst): database logging, signal-only logging, profiling, tracing, retention, and production-safe settings.
 - [Safe observability integrations](docs/observability_integrations.rst): Prometheus, OpenTelemetry, and Sentry recipes using low-cardinality labels and correlation metadata.
+- [Policy controls](docs/policy_controls.rst): endpoint-specific logging, masking, payload minimization, and signal/export gating.
 - [AI assistant guidance](docs/ai_readiness.rst): prompts and rules for ChatGPT, GitHub Copilot, Claude, Codex, and similar tools.
 - [Comparison and migration guide](docs/comparison_and_migration.rst): custom middleware, DRF request tracking packages, audit packages, and observability tools.
 - [Tutorials and community snippets](docs/tutorials.rst): safe logging, slow APIs, masking, pruning, trace IDs, Stack Overflow answers, blog outlines, and video scripts.
@@ -504,6 +506,26 @@ def api_logger_context(request):
 Only `actor_id`, `tenant_id`, `api_consumer_id`, and `client_id` are accepted
 from the callback. Use opaque IDs, not names, emails, tokens, or other
 identifying values.
+
+### Policy Controls
+
+Use endpoint-specific rules when an API needs different logging, masking,
+payload minimization, or signal/export behavior:
+
+```python
+DRF_API_LOGGER_POLICY = {
+    "rules": [
+        {"url_name": "health_check", "log": False},
+        {
+            "route": "api/payments/",
+            "request_body": False,
+            "response_body": False,
+            "mask_keys": ["card_number", "payment_token"],
+            "signal": False,
+        },
+    ],
+}
+```
 
 ### Safe Observability Integrations
 

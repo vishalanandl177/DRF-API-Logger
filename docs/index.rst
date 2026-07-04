@@ -24,6 +24,7 @@ profile SQL-heavy endpoints when enabled.
 
    quickstart
    observability_integrations
+   policy_controls
    ai_readiness
    comparison_and_migration
    tutorials
@@ -43,6 +44,8 @@ Key Features
 - Per-request API profiling with auto-diagnosis of bottlenecks
 - Request correlation through request attributes, logging context, and signals
 - Optional Prometheus, OpenTelemetry, and Sentry helper functions with safe defaults
+- Optional endpoint-specific policy controls for logging, masking, payload
+  stripping, and signal/export gating
 
 
 Supported Versions

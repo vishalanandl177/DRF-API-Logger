@@ -13,6 +13,10 @@ from django.test.utils import override_settings
 from drf_api_logger.middleware.api_logger_middleware import APILoggerMiddleware
 
 
+def middleware_exploding_policy(context):
+    raise RuntimeError("policy failed with Authorization=Bearer secret-token")
+
+
 class TestAPILoggerMiddleware(TestCase):
     """Test cases for the API Logger Middleware"""
 
@@ -485,3 +489,181 @@ class TestAPILoggerMiddleware(TestCase):
         request = self.factory.get('/api/test/')
         response = self.middleware(request)
         self.assertEqual(response.status_code, 200)
+
+    @override_settings(
+        DRF_API_LOGGER_DATABASE=True,
+        DRF_API_LOGGER_SIGNAL=True,
+        DRF_API_LOGGER_POLICY={
+            "rules": [
+                {"url_name": "test", "log": False, "reason": "skip_test_endpoint"},
+            ]
+        }
+    )
+    @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
+    @patch('drf_api_logger.apps.LOGGER_THREAD')
+    def test_policy_can_skip_database_and_signal_logging(self, mock_thread, mock_resolve):
+        mock_resolve.return_value.namespace = None
+        mock_resolve.return_value.app_name = None
+        mock_resolve.return_value.url_name = 'test'
+        mock_resolve.return_value.route = 'api/test/'
+        mock_resolve.return_value.func = self.get_response
+        mock_thread.put_log_data = Mock()
+
+        from drf_api_logger import API_LOGGER_SIGNAL
+        signal_data = []
+
+        def listener(**kwargs):
+            signal_data.append(kwargs)
+
+        API_LOGGER_SIGNAL.listen += listener
+        try:
+            middleware = APILoggerMiddleware(get_response=self.get_response)
+            request = self.factory.get('/api/test/')
+            response = middleware(request)
+
+            self.assertEqual(response.status_code, 200)
+            mock_thread.put_log_data.assert_not_called()
+            self.assertEqual(signal_data, [])
+        finally:
+            API_LOGGER_SIGNAL.listen -= listener
+
+    @override_settings(
+        DRF_API_LOGGER_DATABASE=True,
+        DRF_API_LOGGER_SIGNAL=True,
+        DRF_API_LOGGER_POLICY={
+            "rules": [
+                {
+                    "url_name": "test",
+                    "headers": False,
+                    "request_body": False,
+                    "response_body": False,
+                    "signal": False,
+                    "reason": "metadata_only",
+                },
+            ]
+        }
+    )
+    @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
+    @patch('drf_api_logger.apps.LOGGER_THREAD')
+    def test_policy_can_strip_payloads_and_disable_signal_only(self, mock_thread, mock_resolve):
+        mock_resolve.return_value.namespace = None
+        mock_resolve.return_value.app_name = None
+        mock_resolve.return_value.url_name = 'test'
+        mock_resolve.return_value.route = 'api/test/'
+        mock_resolve.return_value.func = self.get_response
+        mock_thread.put_log_data = Mock()
+
+        from drf_api_logger import API_LOGGER_SIGNAL
+        signal_data = []
+
+        def listener(**kwargs):
+            signal_data.append(kwargs)
+
+        API_LOGGER_SIGNAL.listen += listener
+        try:
+            middleware = APILoggerMiddleware(get_response=self.get_response)
+            request = self.factory.post(
+                '/api/test/',
+                data=json.dumps({"email": "developer@example.invalid"}),
+                content_type='application/json',
+                HTTP_AUTHORIZATION='Bearer secret-token',
+            )
+            response = middleware(request)
+
+            self.assertEqual(response.status_code, 200)
+            mock_thread.put_log_data.assert_called_once()
+            call_data = mock_thread.put_log_data.call_args[1]['data']
+            self.assertEqual(call_data['headers'], '')
+            self.assertEqual(call_data['body'], '')
+            self.assertEqual(call_data['response'], '')
+            self.assertEqual(signal_data, [])
+        finally:
+            API_LOGGER_SIGNAL.listen -= listener
+
+    @override_settings(
+        DRF_API_LOGGER_SIGNAL=True,
+        DRF_API_LOGGER_POLICY={
+            "rules": [
+                {
+                    "url_name": "test",
+                    "mask_keys": ["email"],
+                    "reason": "mask_endpoint_email",
+                },
+            ]
+        }
+    )
+    @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
+    def test_policy_extra_mask_keys_apply_before_signal_export(self, mock_resolve):
+        mock_resolve.return_value.namespace = None
+        mock_resolve.return_value.app_name = None
+        mock_resolve.return_value.url_name = 'test'
+        mock_resolve.return_value.route = 'api/test/'
+        mock_resolve.return_value.func = self.get_response
+
+        from drf_api_logger import API_LOGGER_SIGNAL
+        signal_data = []
+
+        def listener(**kwargs):
+            signal_data.append(kwargs)
+
+        API_LOGGER_SIGNAL.listen += listener
+        try:
+            middleware = APILoggerMiddleware(get_response=self.get_response)
+            request = self.factory.post(
+                '/api/test/?email=developer@example.invalid',
+                data=json.dumps({"email": "developer@example.invalid"}),
+                content_type='application/json',
+            )
+            response = middleware(request)
+
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(signal_data[0]['body']['email'], '***FILTERED***')
+            self.assertIn('email=***FILTERED***', signal_data[0]['api'])
+            self.assertEqual(signal_data[0]['policy']['reason'], 'mask_endpoint_email')
+        finally:
+            API_LOGGER_SIGNAL.listen -= listener
+
+    @override_settings(
+        DRF_API_LOGGER_DATABASE=True,
+        DRF_API_LOGGER_SIGNAL=True,
+        DRF_API_LOGGER_POLICY_FUNC="tests.test_middleware.middleware_exploding_policy"
+    )
+    @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
+    @patch('drf_api_logger.apps.LOGGER_THREAD')
+    def test_policy_failure_logs_safe_metadata_only(self, mock_thread, mock_resolve):
+        mock_resolve.return_value.namespace = None
+        mock_resolve.return_value.app_name = None
+        mock_resolve.return_value.url_name = 'test'
+        mock_resolve.return_value.route = 'api/test/'
+        mock_resolve.return_value.func = self.get_response
+        mock_thread.put_log_data = Mock()
+
+        from drf_api_logger import API_LOGGER_SIGNAL
+        signal_data = []
+
+        def listener(**kwargs):
+            signal_data.append(kwargs)
+
+        API_LOGGER_SIGNAL.listen += listener
+        try:
+            middleware = APILoggerMiddleware(get_response=self.get_response)
+            request = self.factory.post(
+                '/api/test/?email=developer@example.invalid',
+                data=json.dumps({"password": "secret", "email": "developer@example.invalid"}),
+                content_type='application/json',
+                HTTP_AUTHORIZATION='Bearer secret-token',
+            )
+            response = middleware(request)
+
+            self.assertEqual(response.status_code, 200)
+            mock_thread.put_log_data.assert_called_once()
+            call_data = mock_thread.put_log_data.call_args[1]['data']
+            self.assertEqual(call_data['headers'], '')
+            self.assertEqual(call_data['body'], '')
+            self.assertEqual(call_data['response'], '')
+            self.assertEqual(signal_data, [])
+            self.assertNotIn('secret-token', str(call_data))
+            self.assertNotIn('developer@example.invalid', str(call_data))
+            self.assertNotIn('email=', str(call_data))
+        finally:
+            API_LOGGER_SIGNAL.listen -= listener
