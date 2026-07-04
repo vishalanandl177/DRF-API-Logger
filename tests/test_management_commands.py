@@ -121,3 +121,50 @@ class TestPruneAPILogsCommand(TestCase):
             call_command('prune_api_logs', '--days', '30')
 
         self.assertIn('DRF_API_LOGGER_DATABASE must be True', str(context.exception))
+
+
+class TestDRFAPILoggerDoctorCommand(TestCase):
+    """Test cases for production diagnostics command output and exit behavior."""
+
+    @override_settings(DRF_API_LOGGER_DATABASE=False, DRF_API_LOGGER_SIGNAL=False)
+    def test_text_output_includes_summary_results_and_hints(self):
+        output = StringIO()
+
+        call_command('drf_api_logger_doctor', stdout=output)
+
+        content = output.getvalue()
+        self.assertIn('DRF API Logger diagnostics', content)
+        self.assertIn('Summary:', content)
+        self.assertIn('WARNING DRF001 DRF API Logger is disabled.', content)
+        self.assertIn('hint:', content)
+
+    @override_settings(DRF_API_LOGGER_DATABASE=False, DRF_API_LOGGER_SIGNAL=False)
+    def test_json_output_is_machine_readable(self):
+        import json
+
+        output = StringIO()
+
+        call_command('drf_api_logger_doctor', '--format', 'json', stdout=output)
+
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload['summary']['warning'], 1)
+        self.assertEqual(payload['results'][0]['code'], 'DRF001')
+        self.assertEqual(payload['results'][0]['details'], {})
+
+    @override_settings(DRF_API_LOGGER_DATABASE=False, DRF_API_LOGGER_SIGNAL=False)
+    def test_fail_level_warning_raises_command_error(self):
+        output = StringIO()
+
+        with self.assertRaises(CommandError) as context:
+            call_command('drf_api_logger_doctor', '--fail-level', 'warning', stdout=output)
+
+        self.assertIn('DRF API Logger diagnostics failed at warning level', str(context.exception))
+
+    @override_settings(DRF_API_LOGGER_DATABASE=True, DRF_API_LOGGER_SIGNAL=False)
+    def test_fail_level_error_raises_for_error_result(self):
+        output = StringIO()
+
+        with self.assertRaises(CommandError) as context:
+            call_command('drf_api_logger_doctor', '--database', 'missing', stdout=output)
+
+        self.assertIn('DRF API Logger diagnostics failed at error level', str(context.exception))
