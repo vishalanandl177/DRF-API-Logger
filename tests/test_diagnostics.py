@@ -3,6 +3,7 @@ Tests for production diagnostics and doctor readiness checks.
 """
 from unittest.mock import Mock, patch
 
+from django.db.utils import OperationalError
 from django.test import TestCase
 from django.test.utils import override_settings
 
@@ -96,6 +97,29 @@ class DiagnosticsSettingsTests(TestCase):
             level="error",
             message="API log table is missing.",
         )
+
+    def test_database_helpers_use_real_connection_when_available(self):
+        from drf_api_logger.diagnostics import (
+            _database_table_exists,
+            _has_pending_migrations,
+        )
+
+        self.assertTrue(_database_table_exists("default"))
+        self.assertFalse(_has_pending_migrations("default"))
+
+    def test_database_helpers_fail_closed_on_connection_errors(self):
+        from drf_api_logger.diagnostics import (
+            _database_table_exists,
+            _has_pending_migrations,
+        )
+
+        class FailingConnections:
+            def __getitem__(self, database):
+                raise OperationalError("database unavailable")
+
+        with patch("drf_api_logger.diagnostics.connections", FailingConnections()):
+            self.assertFalse(_database_table_exists("default"))
+            self.assertTrue(_has_pending_migrations("default"))
 
     @override_settings(DRF_API_LOGGER_DATABASE=True)
     @patch("drf_api_logger.diagnostics._database_table_exists", return_value=True)
