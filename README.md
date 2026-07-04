@@ -625,6 +625,21 @@ For detailed testing instructions, see [TESTING.md](TESTING.md).
 
 ## 🚀 Performance & Production
 
+### Production Diagnostics
+
+Run production diagnostics before deploying database logging:
+
+```bash
+python manage.py drf_api_logger_doctor
+python manage.py drf_api_logger_doctor --format json
+python manage.py drf_api_logger_doctor --fail-level warning
+```
+
+The doctor command is read-only. It checks logging mode, database readiness,
+migrations, table availability, queue settings, worker status, payload limits,
+masking configuration, and profiling risk. Use `--fail-level error` when a
+deployment should fail only for blocking misconfiguration.
+
 ### Database Optimization
 
 For high-traffic applications:

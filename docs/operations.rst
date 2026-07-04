@@ -16,6 +16,73 @@ DRF API Logger 1.2.3 supports:
 The GitHub Actions workflow tests representative Django versions from this
 support range before publishing package artifacts.
 
+Production Doctor Command
+-------------------------
+
+Run ``drf_api_logger_doctor`` before enabling database logging in production
+and after deployment changes that affect logging, storage, retention, masking,
+payload limits, or profiling.
+
+.. code-block:: bash
+
+   python manage.py drf_api_logger_doctor
+
+The command is read-only. It validates logging mode, database alias readiness,
+DRF API Logger migrations, the log table, queue settings, background worker
+status, payload limits, masking configuration, and profiling settings. It does
+not create tables, run migrations, prune rows, or inspect stored request or
+response payloads.
+
+Use JSON output in CI or deployment checks:
+
+.. code-block:: bash
+
+   python manage.py drf_api_logger_doctor --format json
+
+Fail a deployment on warnings or errors:
+
+.. code-block:: bash
+
+   python manage.py drf_api_logger_doctor --fail-level warning
+   python manage.py drf_api_logger_doctor --fail-level error
+
+Use ``--database`` when ``DRF_API_LOGGER_DEFAULT_DATABASE`` points to a
+dedicated log database and the deployment check must inspect that alias
+explicitly:
+
+.. code-block:: bash
+
+   python manage.py drf_api_logger_doctor --database logs_db --format json
+
+Result levels:
+
+``OK``
+   The checked condition is valid for the current configuration.
+
+``WARNING``
+   The package can run, but the setting or runtime state deserves operator
+   attention before production use.
+
+``ERROR``
+   The package is likely misconfigured for the selected logging mode. Fix the
+   issue before relying on production database logging.
+
+Deployment Checklist
+--------------------
+
+Before enabling database logging in production:
+
+- Run ``python manage.py migrate drf_api_logger`` on the configured log
+  database.
+- Run ``python manage.py drf_api_logger_doctor --fail-level warning``.
+- Keep finite body limits with ``DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE`` and
+  ``DRF_API_LOGGER_MAX_RESPONSE_BODY_SIZE``.
+- Add application-specific secrets to ``DRF_API_LOGGER_EXCLUDE_KEYS``.
+- Skip health and metrics endpoints with ``DRF_API_LOGGER_SKIP_URL_NAME`` or
+  ``DRF_API_LOGGER_SKIP_NAMESPACE``.
+- Schedule ``prune_api_logs`` with a dry run first.
+- Monitor ``queue_backlog``, ``dropped_count``, and ``failed_insert_count``.
+
 Database Growth
 ---------------
 

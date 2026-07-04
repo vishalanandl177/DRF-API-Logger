@@ -612,6 +612,18 @@ Model Schema
 Performance & Production
 =========================
 
+Run production diagnostics during deployment:
+
+.. code-block:: bash
+
+   python manage.py drf_api_logger_doctor
+   python manage.py drf_api_logger_doctor --format json
+   python manage.py drf_api_logger_doctor --fail-level warning
+
+The command is read-only and reports database readiness, queue health, payload
+limits, masking configuration, and profiling risk. Use ``--fail-level error``
+when deployment checks should fail only on blocking misconfiguration.
+
 .. code-block:: python
 
    # Use a dedicated database for logs

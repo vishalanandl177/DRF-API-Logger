@@ -251,6 +251,23 @@ class DocumentationContentTests(unittest.TestCase):
         self.assertIn("Safe Failure Behavior", guide)
         self.assertIn("Do not put secrets", llms)
 
+    def test_doctor_command_is_documented(self):
+        operations = read_text("docs/operations.rst")
+        index = read_text("docs/index.rst")
+        readme = read_text("README.md")
+        testing = read_text("TESTING.md")
+        developer_testing = read_text("docs/developer_testing.rst")
+
+        for content in (operations, index, readme, testing, developer_testing):
+            self.assertIn("drf_api_logger_doctor", content)
+            self.assertIn("--fail-level", content)
+
+        self.assertIn("--format json", operations)
+        self.assertIn("queue_backlog", operations)
+        self.assertIn("DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE", operations)
+        self.assertIn("tests/test_diagnostics.py", testing)
+        self.assertIn("Production diagnostics", developer_testing)
+
 
 if __name__ == "__main__":
     unittest.main()
