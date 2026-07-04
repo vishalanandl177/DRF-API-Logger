@@ -64,6 +64,7 @@ make check-package
 - `tests/test_models.py`: model fields, admin display, filters, and CSV export.
 - `tests/test_signals.py`: event listeners, background queue behavior, app startup, and worker stats.
 - `tests/test_observability.py`: dependency-free Prometheus, OpenTelemetry, and Sentry helper behavior.
+- `tests/test_policy.py`: logging policy decisions, endpoint rules, callable overrides, extra mask keys, and safe failure behavior.
 - `tests/test_profiling.py`: profiling settings, SQL tracking, admin diagnosis, and nullable profiling fields.
 - `tests/test_backward_compat.py`: default behavior when profiling is disabled.
 - `tests/test_integration.py`: end-to-end middleware, signal, database, and workflow coverage.

@@ -146,6 +146,24 @@ Recommended operating pattern:
 - Skip health checks and metrics endpoints with ``DRF_API_LOGGER_SKIP_URL_NAME``
   or ``DRF_API_LOGGER_SKIP_NAMESPACE``.
 
+Policy Control Operations
+-------------------------
+
+Use ``DRF_API_LOGGER_POLICY`` to keep noisy, sensitive, or internal endpoints
+out of database logs or signal exports. Keep policy matching deterministic and
+bounded because policy evaluation runs on the request path.
+
+Recommended operating pattern:
+
+- Use ``log: False`` for health checks, metrics endpoints, and endpoints that
+  should never produce API logger rows or signal exports.
+- Use ``headers: False``, ``request_body: False``, and ``response_body: False``
+  for sensitive routes that still need timing and status metadata.
+- Use ``mask_keys`` for endpoint-specific identifiers that are not globally
+  sensitive in the rest of the application.
+- Use ``signal: False`` when signal listeners export externally and a request
+  should remain local to database logging.
+
 Database Indexes
 ----------------
 

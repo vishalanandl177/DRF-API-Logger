@@ -86,6 +86,8 @@ Add or update tests for every behavior change. Cover the touched surface:
 - Observability helper behavior for Prometheus labels, OpenTelemetry span
   attributes, Sentry context, optional dependency safety, and high-cardinality
   label prevention.
+- Policy gate behavior for full log drops, metadata-only logging, extra mask
+  keys, signal/export gating, safe failures, and default backward compatibility.
 - Background queue flushing, stats, shutdown, and database alias handling.
 - Admin display, filters, CSV export, and profiling diagnosis.
 - Management commands such as ``prune_api_logs``.

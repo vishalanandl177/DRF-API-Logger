@@ -93,6 +93,21 @@ When exporting DRF API Logger signal data to observability systems:
 - Use Sentry context for debugging metadata, not payload storage.
 - Keep external exporter credentials outside DRF API Logger settings.
 
+Policy Controls
+---------------
+
+Policy controls support data minimization by endpoint. Use them to skip
+logging, strip headers or bodies, add endpoint-specific mask keys, and prevent
+signal exports for sensitive routes.
+
+For compliance-sensitive deployments:
+
+- Configure ``log: False`` for endpoints that should not produce logs.
+- Configure ``headers: False`` and body stripping for regulated payloads.
+- Use ``mask_keys`` for tenant-specific or domain-specific identifiers.
+- Keep policy reasons generic and free of personal data.
+- Treat policy callables as request-path code and keep them deterministic.
+
 Storage Controls
 ----------------
 

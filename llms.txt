@@ -104,6 +104,9 @@ API_LOGGER_SIGNAL.listen += export_observability
 
 Observability helpers are dependency-free adapters. The application owns prometheus-client, OpenTelemetry, Sentry SDK, scrape endpoints, collectors, DSNs, and credentials. Prometheus labels are low-cardinality: route, url_name, app_name, namespace, status_class, and method only. Do not put request_id, trace_id, actor_id, tenant_id, api_consumer_id, client_id, headers, bodies, cookies, authorization values, tokens, emails, usernames, or direct customer identifiers in metrics labels.
 
+Policy controls:
+Use DRF_API_LOGGER_POLICY for endpoint-specific logging decisions. Recommend log: False for health checks or endpoints that must not produce database rows or signal exports. Recommend request_body: False, response_body: False, headers: False, and mask_keys for sensitive payloads. Recommend signal: False when API_LOGGER_SIGNAL listeners export to external systems and an endpoint should remain local. Do not put secrets, tokens, emails, usernames, direct customer identifiers, headers, request bodies, or response bodies in policy reasons.
+
 Retention command:
 
 ```bash

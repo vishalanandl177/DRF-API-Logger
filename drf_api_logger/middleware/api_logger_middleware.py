@@ -13,6 +13,7 @@ from drf_api_logger import apps as logger_apps
 from drf_api_logger import API_LOGGER_SIGNAL
 from drf_api_logger.correlation import build_correlation_context, build_low_cardinality_metadata
 from drf_api_logger.logging_context import clear_correlation_context, set_correlation_context
+from drf_api_logger.policy import safe_evaluate_logging_policy
 from drf_api_logger.utils import get_headers, get_client_ip, mask_sensitive_data
 
 
@@ -259,6 +260,18 @@ class APILoggerMiddleware:
 
         return low_cardinality
 
+    def _policy_payload(self, decision, headers, request_data, response_body):
+        return {
+            'headers': headers if decision.headers else '',
+            'request_data': request_data if decision.request_body else '',
+            'response_body': response_body if decision.response_body else '',
+        }
+
+    def _policy_api(self, decision, request, api):
+        if decision.policy_error:
+            return getattr(request, 'path', '') or ''
+        return api
+
     def __call__(self, request):
         # Skip logging for static and media files
         if self.is_static_or_media_request(request.path):
@@ -384,18 +397,6 @@ class APILoggerMiddleware:
 
                 middleware_after_start = time.time()
 
-                data = dict(
-                    api=mask_sensitive_data(api, mask_api_parameters=True),
-                    headers=mask_sensitive_data(headers),
-                    body=mask_sensitive_data(request_data),
-                    method=method,
-                    client_ip_address=get_client_ip(request),
-                    response=mask_sensitive_data(response_body),
-                    status_code=response.status_code,
-                    execution_time=time.time() - start_time,
-                    added_on=current_time
-                )
-
                 if self.DRF_API_LOGGER_ENABLE_CORRELATION:
                     correlation_context = build_correlation_context(
                         request=request,
@@ -405,6 +406,48 @@ class APILoggerMiddleware:
                         tracing_id=tracing_id,
                     )
                     low_cardinality = self._attach_correlation_context(request, correlation_context)
+
+                policy_decision = safe_evaluate_logging_policy(
+                    request=request,
+                    response=response,
+                    resolver_match=resolver_match,
+                    correlation_context=correlation_context,
+                    low_cardinality=low_cardinality,
+                )
+                if not policy_decision.log:
+                    return response
+
+                policy_payload = self._policy_payload(
+                    policy_decision,
+                    headers,
+                    request_data,
+                    response_body,
+                )
+
+                data = dict(
+                    api=mask_sensitive_data(
+                        self._policy_api(policy_decision, request, api),
+                        mask_api_parameters=True,
+                        extra_sensitive_keys=policy_decision.mask_keys,
+                    ),
+                    headers=mask_sensitive_data(
+                        policy_payload['headers'],
+                        extra_sensitive_keys=policy_decision.mask_keys,
+                    ),
+                    body=mask_sensitive_data(
+                        policy_payload['request_data'],
+                        extra_sensitive_keys=policy_decision.mask_keys,
+                    ),
+                    method=method,
+                    client_ip_address=get_client_ip(request),
+                    response=mask_sensitive_data(
+                        policy_payload['response_body'],
+                        extra_sensitive_keys=policy_decision.mask_keys,
+                    ),
+                    status_code=response.status_code,
+                    execution_time=time.time() - start_time,
+                    added_on=current_time
+                )
 
                 middleware_after_end = time.time()
 
@@ -421,7 +464,7 @@ class APILoggerMiddleware:
                     data['profiling_data'] = profiling
                     data['sql_query_count'] = sql_data['query_count'] if sql_data else None
 
-                if self.DRF_API_LOGGER_DATABASE and logger_apps.LOGGER_THREAD:
+                if policy_decision.database and self.DRF_API_LOGGER_DATABASE and logger_apps.LOGGER_THREAD:
                     d = data.copy()
                     d['headers'] = json.dumps(d['headers'], indent=4, ensure_ascii=False) if d.get('headers') else ''
                     if request_data:
@@ -430,7 +473,7 @@ class APILoggerMiddleware:
                     if d.get('profiling_data'):
                         d['profiling_data'] = json.dumps(d['profiling_data'], indent=4, ensure_ascii=False)
                     logger_apps.LOGGER_THREAD.put_log_data(data=d)
-                if self.DRF_API_LOGGER_SIGNAL:
+                if policy_decision.signal and self.DRF_API_LOGGER_SIGNAL:
                     signal_data = data.copy()
                     if tracing_id:
                         signal_data.update({
@@ -440,6 +483,12 @@ class APILoggerMiddleware:
                         signal_data.update({
                             'correlation': correlation_context.copy(),
                             'low_cardinality': low_cardinality.copy(),
+                        })
+                    if getattr(settings, 'DRF_API_LOGGER_POLICY', None) or getattr(
+                        settings, 'DRF_API_LOGGER_POLICY_FUNC', None
+                    ):
+                        signal_data.update({
+                            'policy': policy_decision.to_signal_metadata(),
                         })
                     API_LOGGER_SIGNAL.listen(**signal_data)
             else:
