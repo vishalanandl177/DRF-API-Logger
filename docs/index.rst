@@ -23,6 +23,7 @@ profile SQL-heavy endpoints when enabled.
    :hidden:
 
    quickstart
+   asgi
    observability_integrations
    policy_controls
    ai_readiness
@@ -39,6 +40,7 @@ Key Features
 - Response information: status code, response body, and execution time
 - Automatic masking of sensitive data (passwords, tokens)
 - Non-blocking background processing with configurable queuing
+- ASGI-native logging while preserving sync deployment compatibility
 - Database logging and/or real-time signal notifications
 - Built-in admin dashboard with charts and performance metrics
 - Per-request API profiling with auto-diagnosis of bottlenecks

@@ -4,6 +4,7 @@ import random
 import time
 import uuid
 
+from asgiref.sync import iscoroutinefunction, markcoroutinefunction
 from django.conf import settings
 from django.urls import resolve
 from django.utils import timezone
@@ -22,8 +23,14 @@ DEFAULT_MAX_RESPONSE_BODY_SIZE = 65536
 
 
 class APILoggerMiddleware:
+    sync_capable = True
+    async_capable = True
+
     def __init__(self, get_response):
         self.get_response = get_response
+        self.async_mode = iscoroutinefunction(get_response)
+        if self.async_mode:
+            markcoroutinefunction(self)
         # One-time configuration and initialization.
 
         self.DRF_API_LOGGER_DATABASE = False
@@ -272,227 +279,304 @@ class APILoggerMiddleware:
             return getattr(request, 'path', '') or ''
         return api
 
+    def _safe_queue_log_data(self, data):
+        try:
+            logger_apps.LOGGER_THREAD.put_log_data(data=data)
+        except Exception:
+            return False
+        return True
+
+    def _api_logger_enabled(self):
+        return self.DRF_API_LOGGER_DATABASE or self.DRF_API_LOGGER_SIGNAL
+
+    def _resolve_request(self, request):
+        try:
+            resolver_match = resolve(request.path_info)
+            return resolver_match, resolver_match.url_name, resolver_match.namespace
+        except Exception:
+            return None, None, None
+
+    def _should_skip_resolved_request(self, url_name, namespace):
+        if namespace == 'admin':
+            return True
+        if url_name in self.DRF_API_LOGGER_SKIP_URL_NAME:
+            return True
+        if namespace in self.DRF_API_LOGGER_SKIP_NAMESPACE:
+            return True
+        return False
+
+    def _build_tracing_id(self, headers):
+        if not self.DRF_API_LOGGER_ENABLE_TRACING:
+            return None
+        tracing_id = None
+        if self.DRF_API_LOGGER_TRACING_ID_HEADER_NAME:
+            tracing_id = headers.get(self.DRF_API_LOGGER_TRACING_ID_HEADER_NAME)
+        if tracing_id:
+            return tracing_id
+        if self.tracing_func_name:
+            return self.tracing_func_name()
+        return str(uuid.uuid4())
+
+    def _start_sql_profiling(self, profile_this_request):
+        if not profile_this_request or not self.DRF_API_LOGGER_PROFILING_SQL_TRACKING:
+            return None
+        from django.db import connection, reset_queries
+        original_force_debug_cursor = connection.force_debug_cursor
+        connection.force_debug_cursor = True
+        reset_queries()
+        return connection, reset_queries, original_force_debug_cursor
+
+    def _finish_sql_profiling(self, sql_profiling):
+        if not sql_profiling:
+            return None
+        connection, reset_queries, original_force_debug_cursor = sql_profiling
+        try:
+            queries = connection.queries[:]
+            sql_total_time = sum(float(query.get('time', 0)) for query in queries)
+            return {
+                'total_time': round(sql_total_time, 5),
+                'query_count': len(queries),
+            }
+        finally:
+            connection.force_debug_cursor = original_force_debug_cursor
+            reset_queries()
+
+    def _prepare_log_state(self, request):
+        resolver_match, url_name, namespace = self._resolve_request(request)
+        if self._should_skip_resolved_request(url_name, namespace):
+            return None
+
+        start_time = time.time()
+        middleware_before_start = time.time()
+        headers = get_headers(request=request)
+        request_data = self._get_request_data(request)
+        tracing_id = self._build_tracing_id(headers)
+        if tracing_id:
+            request.tracing_id = tracing_id
+        middleware_before_end = time.time()
+
+        correlation_context = {}
+        low_cardinality = {}
+        logging_context_set = False
+        if self.DRF_API_LOGGER_ENABLE_CORRELATION:
+            correlation_context = build_correlation_context(
+                request=request,
+                headers=headers,
+                resolver_match=resolver_match,
+                tracing_id=tracing_id,
+            )
+            low_cardinality = self._attach_correlation_context(request, correlation_context)
+            if self.DRF_API_LOGGER_ENABLE_LOGGING_CONTEXT:
+                set_correlation_context(correlation_context)
+                logging_context_set = True
+
+        profile_this_request = self._should_profile()
+
+        return {
+            'resolver_match': resolver_match,
+            'start_time': start_time,
+            'middleware_before_start': middleware_before_start,
+            'middleware_before_end': middleware_before_end,
+            'headers': headers,
+            'method': request.method,
+            'request_data': request_data,
+            'tracing_id': tracing_id,
+            'correlation_context': correlation_context,
+            'low_cardinality': low_cardinality,
+            'logging_context_set': logging_context_set,
+            'profile_this_request': profile_this_request,
+            'sql_profiling': self._start_sql_profiling(profile_this_request),
+            'sql_data': None,
+            'view_end': None,
+        }
+
+    def _finish_log_state_after_view(self, state, view_start):
+        state['view_end'] = time.time()
+        try:
+            state['sql_data'] = self._finish_sql_profiling(state['sql_profiling'])
+        finally:
+            if state['logging_context_set']:
+                clear_correlation_context()
+
+    def _request_api(self, request):
+        if self.DRF_API_LOGGER_PATH_TYPE == 'FULL_PATH':
+            return request.get_full_path()
+        if self.DRF_API_LOGGER_PATH_TYPE == 'RAW_URI':
+            get_raw_uri = getattr(request, 'get_raw_uri', None)
+            if get_raw_uri:
+                return get_raw_uri()
+            return request.build_absolute_uri(request.get_full_path())
+        return request.build_absolute_uri()
+
+    def _current_time(self):
+        if settings.USE_TZ:
+            return timezone.now()
+        return datetime.now()
+
+    def _build_log_data(self, request, response, state, policy_decision, policy_payload):
+        return dict(
+            api=mask_sensitive_data(
+                self._policy_api(policy_decision, request, self._request_api(request)),
+                mask_api_parameters=True,
+                extra_sensitive_keys=policy_decision.mask_keys,
+            ),
+            headers=mask_sensitive_data(
+                policy_payload['headers'],
+                extra_sensitive_keys=policy_decision.mask_keys,
+            ),
+            body=mask_sensitive_data(
+                policy_payload['request_data'],
+                extra_sensitive_keys=policy_decision.mask_keys,
+            ),
+            method=state['method'],
+            client_ip_address=get_client_ip(request),
+            response=mask_sensitive_data(
+                policy_payload['response_body'],
+                extra_sensitive_keys=policy_decision.mask_keys,
+            ),
+            status_code=response.status_code,
+            execution_time=time.time() - state['start_time'],
+            added_on=self._current_time(),
+        )
+
+    def _add_profiling_data(self, data, state, middleware_after_start):
+        if not state['profile_this_request']:
+            return
+        sql_data = state['sql_data']
+        profiling = {
+            'middleware_before_view': round(
+                state['middleware_before_end'] - state['middleware_before_start'], 5
+            ),
+            'view_and_serialization': round(
+                state['view_end'] - state['view_start'], 5
+            ),
+            'middleware_after_view': round(time.time() - middleware_after_start, 5),
+        }
+        if sql_data:
+            profiling['sql'] = sql_data
+        data['profiling_data'] = profiling
+        data['sql_query_count'] = sql_data['query_count'] if sql_data else None
+
+    def _database_payload(self, data, request_data):
+        database_data = data.copy()
+        database_data['headers'] = (
+            json.dumps(database_data['headers'], indent=4, ensure_ascii=False)
+            if database_data.get('headers') else ''
+        )
+        if request_data:
+            database_data['body'] = (
+                json.dumps(database_data['body'], indent=4, ensure_ascii=False)
+                if database_data.get('body') else ''
+            )
+        database_data['response'] = (
+            json.dumps(database_data['response'], indent=4, ensure_ascii=False)
+            if database_data.get('response') else ''
+        )
+        if database_data.get('profiling_data'):
+            database_data['profiling_data'] = json.dumps(
+                database_data['profiling_data'],
+                indent=4,
+                ensure_ascii=False,
+            )
+        return database_data
+
+    def _emit_log_data(self, data, state, policy_decision):
+        if policy_decision.database and self.DRF_API_LOGGER_DATABASE and logger_apps.LOGGER_THREAD:
+            self._safe_queue_log_data(
+                self._database_payload(data, state['request_data'])
+            )
+        if policy_decision.signal and self.DRF_API_LOGGER_SIGNAL:
+            signal_data = data.copy()
+            if state['tracing_id']:
+                signal_data.update({'tracing_id': state['tracing_id']})
+            if state['correlation_context']:
+                signal_data.update({
+                    'correlation': state['correlation_context'].copy(),
+                    'low_cardinality': state['low_cardinality'].copy(),
+                })
+            if getattr(settings, 'DRF_API_LOGGER_POLICY', None) or getattr(
+                settings, 'DRF_API_LOGGER_POLICY_FUNC', None
+            ):
+                signal_data.update({'policy': policy_decision.to_signal_metadata()})
+            API_LOGGER_SIGNAL.listen(**signal_data)
+
+    def _finalize_log_response(self, request, response, state):
+        if self.DRF_API_LOGGER_STATUS_CODES and response.status_code not in self.DRF_API_LOGGER_STATUS_CODES:
+            return response
+        if len(self.DRF_API_LOGGER_METHODS) > 0 and state['method'] not in self.DRF_API_LOGGER_METHODS:
+            return response
+        if not self._should_log_response_content_type(response):
+            return response
+
+        response_body = self._get_response_body(response)
+        middleware_after_start = time.time()
+
+        if self.DRF_API_LOGGER_ENABLE_CORRELATION:
+            state['correlation_context'] = build_correlation_context(
+                request=request,
+                headers=state['headers'],
+                resolver_match=state['resolver_match'],
+                status_code=response.status_code,
+                tracing_id=state['tracing_id'],
+            )
+            state['low_cardinality'] = self._attach_correlation_context(
+                request,
+                state['correlation_context'],
+            )
+
+        policy_decision = safe_evaluate_logging_policy(
+            request=request,
+            response=response,
+            resolver_match=state['resolver_match'],
+            correlation_context=state['correlation_context'],
+            low_cardinality=state['low_cardinality'],
+        )
+        if not policy_decision.log:
+            return response
+
+        policy_payload = self._policy_payload(
+            policy_decision,
+            state['headers'],
+            state['request_data'],
+            response_body,
+        )
+        data = self._build_log_data(request, response, state, policy_decision, policy_payload)
+        self._add_profiling_data(data, state, middleware_after_start)
+        self._emit_log_data(data, state, policy_decision)
+        return response
+
     def __call__(self, request):
-        # Skip logging for static and media files
+        if self.async_mode:
+            return self.__acall__(request)
         if self.is_static_or_media_request(request.path):
             return self.get_response(request)
+        if not self._api_logger_enabled():
+            return self.get_response(request)
 
-        # Run only if logger is enabled.
-        if self.DRF_API_LOGGER_DATABASE or self.DRF_API_LOGGER_SIGNAL:
+        state = self._prepare_log_state(request)
+        if state is None:
+            return self.get_response(request)
 
-            resolver_match = None
-            try:
-                resolver_match = resolve(request.path_info)
-                url_name = resolver_match.url_name
-                namespace = resolver_match.namespace
-            except Exception:
-                url_name = None
-                namespace = None
-
-            # Always skip Admin panel
-            if namespace == 'admin':
-                return self.get_response(request)
-
-            # Skip for url name
-            if url_name in self.DRF_API_LOGGER_SKIP_URL_NAME:
-                return self.get_response(request)
-
-            # Skip entire app using namespace
-            if namespace in self.DRF_API_LOGGER_SKIP_NAMESPACE:
-                return self.get_response(request)
-
-            start_time = time.time()
-            middleware_before_start = time.time()
-
-            headers = get_headers(request=request)
-            method = request.method
-
-            request_data = self._get_request_data(request)
-
-            tracing_id = None
-            if self.DRF_API_LOGGER_ENABLE_TRACING:
-                if self.DRF_API_LOGGER_TRACING_ID_HEADER_NAME:
-                    tracing_id = headers.get(self.DRF_API_LOGGER_TRACING_ID_HEADER_NAME)
-                if not tracing_id:
-                    if self.tracing_func_name:
-                        tracing_id = self.tracing_func_name()
-                    else:
-                        tracing_id = str(uuid.uuid4())
-                request.tracing_id = tracing_id
-
-            middleware_before_end = time.time()
-
-            correlation_context = {}
-            low_cardinality = {}
-            logging_context_set = False
-            if self.DRF_API_LOGGER_ENABLE_CORRELATION:
-                correlation_context = build_correlation_context(
-                    request=request,
-                    headers=headers,
-                    resolver_match=resolver_match,
-                    tracing_id=tracing_id,
-                )
-                low_cardinality = self._attach_correlation_context(request, correlation_context)
-                if self.DRF_API_LOGGER_ENABLE_LOGGING_CONTEXT:
-                    set_correlation_context(correlation_context)
-                    logging_context_set = True
-
-            # Set up SQL tracking before calling the view
-            profile_this_request = self._should_profile()
-            sql_profiling_active = (
-                profile_this_request
-                and self.DRF_API_LOGGER_PROFILING_SQL_TRACKING
-            )
-            sql_data = None
-            if sql_profiling_active:
-                from django.db import connection, reset_queries
-                original_force_debug_cursor = connection.force_debug_cursor
-                connection.force_debug_cursor = True
-                reset_queries()
-
-            view_start = time.time()
-            try:
-                response = self.get_response(request)
-            finally:
-                view_end = time.time()
-                if sql_profiling_active:
-                    try:
-                        queries = connection.queries[:]
-                        sql_total_time = sum(float(q.get('time', 0)) for q in queries)
-                        sql_query_count = len(queries)
-                        sql_data = {
-                            'total_time': round(sql_total_time, 5),
-                            'query_count': sql_query_count,
-                        }
-                    finally:
-                        connection.force_debug_cursor = original_force_debug_cursor
-                        reset_queries()
-                if logging_context_set:
-                    clear_correlation_context()
-
-            # Only log required status codes if matching
-            if self.DRF_API_LOGGER_STATUS_CODES and response.status_code not in self.DRF_API_LOGGER_STATUS_CODES:
-                return response
-
-            # Log only registered methods if available.
-            if len(self.DRF_API_LOGGER_METHODS) > 0 and method not in self.DRF_API_LOGGER_METHODS:
-                return response
-
-            if self._should_log_response_content_type(response):
-                response_body = self._get_response_body(response)
-                if self.DRF_API_LOGGER_PATH_TYPE == 'ABSOLUTE':
-                    api = request.build_absolute_uri()
-                elif self.DRF_API_LOGGER_PATH_TYPE == 'FULL_PATH':
-                    api = request.get_full_path()
-                elif self.DRF_API_LOGGER_PATH_TYPE == 'RAW_URI':
-                    api = request.get_raw_uri()
-                else:
-                    api = request.build_absolute_uri()
-
-                # Get the current time in a timezone-aware manner
-                if settings.USE_TZ:
-                    current_time = timezone.now()
-                else:
-                    current_time = datetime.now()
-
-                middleware_after_start = time.time()
-
-                if self.DRF_API_LOGGER_ENABLE_CORRELATION:
-                    correlation_context = build_correlation_context(
-                        request=request,
-                        headers=headers,
-                        resolver_match=resolver_match,
-                        status_code=response.status_code,
-                        tracing_id=tracing_id,
-                    )
-                    low_cardinality = self._attach_correlation_context(request, correlation_context)
-
-                policy_decision = safe_evaluate_logging_policy(
-                    request=request,
-                    response=response,
-                    resolver_match=resolver_match,
-                    correlation_context=correlation_context,
-                    low_cardinality=low_cardinality,
-                )
-                if not policy_decision.log:
-                    return response
-
-                policy_payload = self._policy_payload(
-                    policy_decision,
-                    headers,
-                    request_data,
-                    response_body,
-                )
-
-                data = dict(
-                    api=mask_sensitive_data(
-                        self._policy_api(policy_decision, request, api),
-                        mask_api_parameters=True,
-                        extra_sensitive_keys=policy_decision.mask_keys,
-                    ),
-                    headers=mask_sensitive_data(
-                        policy_payload['headers'],
-                        extra_sensitive_keys=policy_decision.mask_keys,
-                    ),
-                    body=mask_sensitive_data(
-                        policy_payload['request_data'],
-                        extra_sensitive_keys=policy_decision.mask_keys,
-                    ),
-                    method=method,
-                    client_ip_address=get_client_ip(request),
-                    response=mask_sensitive_data(
-                        policy_payload['response_body'],
-                        extra_sensitive_keys=policy_decision.mask_keys,
-                    ),
-                    status_code=response.status_code,
-                    execution_time=time.time() - start_time,
-                    added_on=current_time
-                )
-
-                middleware_after_end = time.time()
-
-                # Build profiling data if enabled
-                profiling = None
-                if profile_this_request:
-                    profiling = {
-                        'middleware_before_view': round(middleware_before_end - middleware_before_start, 5),
-                        'view_and_serialization': round(view_end - view_start, 5),
-                        'middleware_after_view': round(middleware_after_end - middleware_after_start, 5),
-                    }
-                    if sql_data:
-                        profiling['sql'] = sql_data
-                    data['profiling_data'] = profiling
-                    data['sql_query_count'] = sql_data['query_count'] if sql_data else None
-
-                if policy_decision.database and self.DRF_API_LOGGER_DATABASE and logger_apps.LOGGER_THREAD:
-                    d = data.copy()
-                    d['headers'] = json.dumps(d['headers'], indent=4, ensure_ascii=False) if d.get('headers') else ''
-                    if request_data:
-                        d['body'] = json.dumps(d['body'], indent=4, ensure_ascii=False) if d.get('body') else ''
-                    d['response'] = json.dumps(d['response'], indent=4, ensure_ascii=False) if d.get('response') else ''
-                    if d.get('profiling_data'):
-                        d['profiling_data'] = json.dumps(d['profiling_data'], indent=4, ensure_ascii=False)
-                    logger_apps.LOGGER_THREAD.put_log_data(data=d)
-                if policy_decision.signal and self.DRF_API_LOGGER_SIGNAL:
-                    signal_data = data.copy()
-                    if tracing_id:
-                        signal_data.update({
-                            'tracing_id': tracing_id
-                        })
-                    if correlation_context:
-                        signal_data.update({
-                            'correlation': correlation_context.copy(),
-                            'low_cardinality': low_cardinality.copy(),
-                        })
-                    if getattr(settings, 'DRF_API_LOGGER_POLICY', None) or getattr(
-                        settings, 'DRF_API_LOGGER_POLICY_FUNC', None
-                    ):
-                        signal_data.update({
-                            'policy': policy_decision.to_signal_metadata(),
-                        })
-                    API_LOGGER_SIGNAL.listen(**signal_data)
-            else:
-                return response
-        else:
+        state['view_start'] = time.time()
+        try:
             response = self.get_response(request)
-        return response
+        finally:
+            self._finish_log_state_after_view(state, state['view_start'])
+        return self._finalize_log_response(request, response, state)
+
+    async def __acall__(self, request):
+        if self.is_static_or_media_request(request.path):
+            return await self.get_response(request)
+        if not self._api_logger_enabled():
+            return await self.get_response(request)
+
+        state = self._prepare_log_state(request)
+        if state is None:
+            return await self.get_response(request)
+
+        state['view_start'] = time.time()
+        try:
+            response = await self.get_response(request)
+        finally:
+            self._finish_log_state_after_view(state, state['view_start'])
+        return self._finalize_log_response(request, response, state)

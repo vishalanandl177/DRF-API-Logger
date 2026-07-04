@@ -18,8 +18,16 @@ python -m pip install -r requirements-dev.txt
 ```bash
 python test_runner_simple.py
 python -m django test tests --settings=tests.test_settings --verbosity=1
+python -m django test tests.test_asgi_middleware --settings=tests.test_settings --verbosity=2
 coverage run --source=drf_api_logger -m django test tests --settings=tests.test_settings --verbosity=1
 coverage report
+```
+
+For ASGI release evidence against the demo project:
+
+```powershell
+$env:PYTHONPATH='J:\projects\DRF-API-Logger'
+& 'J:\projects\drf-demo\venv\Scripts\python.exe' J:\projects\DRF-API-Logger\scripts\measure_asgi_overhead.py --settings config.settings --path /api/echo/ --requests 100 --concurrency 10
 ```
 
 Run the dependency matrix for middleware, model, migration, packaging, or release changes:
@@ -49,6 +57,7 @@ This matrix is representative coverage, not the complete Django 4.2+ support lis
 ## Areas To Cover
 
 - Request/response middleware behavior.
+- ASGI middleware behavior through direct async calls and Django `AsyncClient`.
 - Sensitive data masking for bodies, headers, responses, and URL query parameters.
 - Signal listener behavior and failure isolation.
 - Background queue flushing, stats, shutdown, and database alias handling.

@@ -61,6 +61,7 @@ make check-package
 
 - `tests/test_utils.py`: headers, client IP detection, masking, and settings helpers.
 - `tests/test_middleware.py`: request/response logging, filtering, tracing, body limits, and content types.
+- `tests/test_asgi_middleware.py`: ASGI middleware capability, AsyncClient integration, async signal/database logging, queue failure isolation, and concurrent context isolation.
 - `tests/test_models.py`: model fields, admin display, filters, and CSV export.
 - `tests/test_signals.py`: event listeners, background queue behavior, app startup, and worker stats.
 - `tests/test_diagnostics.py`: production doctor checks for logging mode, database readiness, queue status, payload limits, masking, and profiling risk.

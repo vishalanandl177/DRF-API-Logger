@@ -213,6 +213,26 @@ Recommended operating pattern:
 - Skip health checks and metrics endpoints with ``DRF_API_LOGGER_SKIP_URL_NAME``
   or ``DRF_API_LOGGER_SKIP_NAMESPACE``.
 
+ASGI Operations
+---------------
+
+ASGI deployments use the same ``APILoggerMiddleware`` configuration as sync
+deployments. The middleware is async-capable and awaits Django's async response
+chain directly when Django runs in ASGI mode.
+
+Recommended operating pattern:
+
+- Keep database logging on the background queue; request coroutines should not
+  perform bulk database insertion.
+- Monitor ``queue_backlog``, ``dropped_count``, and ``failed_insert_count`` in
+  ASGI deployments the same way as sync deployments.
+- Enable request correlation with ``contextvars`` when application logs need
+  per-request context inside async views.
+- Validate with Django ``AsyncClient`` or the package's
+  ``tests/test_asgi_middleware.py`` before rollout.
+- Compare baseline, signal-only, database, and profiling modes for average,
+  p95, and p99 latency in the target application.
+
 Policy Control Operations
 -------------------------
 

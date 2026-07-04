@@ -80,6 +80,7 @@ Coverage Expectations
 Add or update tests for every behavior change. Cover the touched surface:
 
 - Middleware request and response behavior.
+- ASGI middleware behavior through direct async calls and Django ``AsyncClient``.
 - Sensitive data masking in bodies, responses, headers, and URL query
   parameters.
 - Signal listener behavior and exception isolation.
@@ -95,6 +96,27 @@ Add or update tests for every behavior change. Cover the touched surface:
 - Admin display, filters, CSV export, and profiling diagnosis.
 - Management commands such as ``prune_api_logs``.
 - Backward compatibility for defaults and payloads.
+
+ASGI Checks
+-----------
+
+Run the ASGI-specific middleware tests when touching middleware, correlation,
+queueing, profiling, or request/response capture:
+
+.. code-block:: bash
+
+   python -m django test tests.test_asgi_middleware --settings=tests.test_settings --verbosity=2
+
+These tests cover ``AsyncClient`` integration, concurrent ``contextvars``
+isolation, async database enqueue behavior, and queue failure isolation.
+
+For SCRUM-13-style release evidence, measure sync and ASGI overhead against the
+demo project:
+
+.. code-block:: powershell
+
+   $env:PYTHONPATH='J:\projects\DRF-API-Logger'
+   & 'J:\projects\drf-demo\venv\Scripts\python.exe' J:\projects\DRF-API-Logger\scripts\measure_asgi_overhead.py --settings config.settings --path /api/echo/ --requests 100 --concurrency 10
 
 Operational Test Surfaces
 -------------------------
