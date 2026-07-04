@@ -3,6 +3,7 @@ Backward compatibility tests.
 Ensures that when profiling is disabled (default), behavior is identical
 to the pre-profiling version of the package.
 """
+import importlib
 import json
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -298,3 +299,60 @@ class TestCorrelationNoPersistence(TestCase):
                 '0003_apilogsmodel_profiling.py',
             }
         )
+
+
+class TestObservabilityCompatibility(TestCase):
+
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def get_json_response(self, request):
+        return HttpResponse(
+            json.dumps({"ok": True}),
+            content_type="application/json",
+            status=200
+        )
+
+    def test_observability_module_imports_without_optional_packages(self):
+        module = importlib.import_module("drf_api_logger.observability")
+
+        self.assertTrue(hasattr(module, "build_metric_labels"))
+        self.assertTrue(hasattr(module, "record_prometheus_metrics"))
+        self.assertTrue(hasattr(module, "annotate_opentelemetry_span"))
+        self.assertTrue(hasattr(module, "configure_sentry_scope"))
+
+    def test_observability_helpers_do_not_add_runtime_dependencies(self):
+        setup_text = Path(__file__).resolve().parents[1].joinpath("setup.py").read_text(encoding="utf-8")
+
+        self.assertNotIn("prometheus-client", setup_text)
+        self.assertNotIn("opentelemetry-api", setup_text)
+        self.assertNotIn("opentelemetry-sdk", setup_text)
+        self.assertNotIn("sentry-sdk", setup_text)
+
+    @override_settings(
+        DRF_API_LOGGER_DATABASE=True,
+        DRF_API_LOGGER_SIGNAL=False,
+        DRF_API_LOGGER_ENABLE_CORRELATION=True
+    )
+    @patch("drf_api_logger.middleware.api_logger_middleware.resolve")
+    @patch("drf_api_logger.apps.LOGGER_THREAD")
+    def test_db_payload_stays_unchanged_when_observability_helpers_exist(self, mock_thread, mock_resolve):
+        mock_resolve.return_value.namespace = None
+        mock_resolve.return_value.app_name = None
+        mock_resolve.return_value.url_name = "test"
+        mock_resolve.return_value.route = "api/test/"
+        mock_resolve.return_value.func = self.get_json_response
+        mock_thread.put_log_data = Mock()
+
+        middleware = APILoggerMiddleware(get_response=self.get_json_response)
+        request = self.factory.get("/api/test/", HTTP_X_REQUEST_ID="req-123")
+        middleware(request)
+
+        mock_thread.put_log_data.assert_called_once()
+        call_data = mock_thread.put_log_data.call_args[1]["data"]
+
+        self.assertNotIn("correlation", call_data)
+        self.assertNotIn("low_cardinality", call_data)
+        self.assertNotIn("request_id", call_data)
+        self.assertNotIn("trace_id", call_data)
+        self.assertNotIn("observability", call_data)

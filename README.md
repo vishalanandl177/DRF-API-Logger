@@ -66,6 +66,7 @@ DRF API Logger automatically captures and stores comprehensive API information:
 - **🔧 Highly Configurable**: Extensive filtering and customization options
 - **🔬 API Profiling**: Per-request latency breakdown with auto-diagnosis (SQL, middleware, business logic)
 - **Request Correlation**: Opt-in request IDs, traceparent parsing, route metadata, logging context, and signal metadata without new database columns
+- **Safe Observability Integrations**: Optional helpers for Prometheus labels, OpenTelemetry span attributes, and Sentry context without hard dependencies
 
 ### 🌐 Community & Support
 
@@ -227,6 +228,7 @@ API_LOGGER_SIGNAL.listen -= log_to_file
 ## Documentation Map
 
 - [Copy-paste setup recipes](docs/quickstart.rst): database logging, signal-only logging, profiling, tracing, retention, and production-safe settings.
+- [Safe observability integrations](docs/observability_integrations.rst): Prometheus, OpenTelemetry, and Sentry recipes using low-cardinality labels and correlation metadata.
 - [AI assistant guidance](docs/ai_readiness.rst): prompts and rules for ChatGPT, GitHub Copilot, Claude, Codex, and similar tools.
 - [Comparison and migration guide](docs/comparison_and_migration.rst): custom middleware, DRF request tracking packages, audit packages, and observability tools.
 - [Tutorials and community snippets](docs/tutorials.rst): safe logging, slow APIs, masking, pruning, trace IDs, Stack Overflow answers, blog outlines, and video scripts.
@@ -503,6 +505,33 @@ Only `actor_id`, `tenant_id`, `api_consumer_id`, and `client_id` are accepted
 from the callback. Use opaque IDs, not names, emails, tokens, or other
 identifying values.
 
+### Safe Observability Integrations
+
+Use DRF API Logger signal payloads to feed metrics, traces, and error context
+without turning the package into an exporter backend:
+
+```python
+from drf_api_logger import API_LOGGER_SIGNAL
+from drf_api_logger.observability import (
+    annotate_opentelemetry_span,
+    configure_sentry_scope,
+    record_prometheus_metrics,
+)
+
+def export_observability(**kwargs):
+    record_prometheus_metrics(kwargs, API_REQUESTS, API_DURATION)
+    annotate_opentelemetry_span(current_span, kwargs)
+    configure_sentry_scope(sentry_scope, kwargs)
+
+API_LOGGER_SIGNAL.listen += export_observability
+```
+
+Prometheus labels are limited to route, URL name, app name, namespace, status
+class, and method. Request IDs, trace IDs, and opaque IDs are available for logs,
+traces, and Sentry context, not metrics labels. The helpers do not import
+Prometheus, OpenTelemetry, or Sentry; applications own those dependencies and
+exporter configuration.
+
 ## 📊 Programmatic Access
 
 ### Querying Log Data
@@ -702,6 +731,7 @@ Add to `INSTALLED_APPS` and `MIDDLEWARE`, then set `DRF_API_LOGGER_DATABASE = Tr
 - *"Set up drf-api-logger with profiling to find slow SQL queries"*
 - *"Configure drf-api-logger to mask sensitive data and log to a separate database"*
 - *"Add API request tracing to my DRF project using drf-api-logger"*
+- *"Add safe Prometheus, OpenTelemetry, or Sentry integration to DRF API Logger signals without exporting request bodies or high-cardinality metric labels"*
 
 AI-generated custom logging code typically misses thread safety, sensitive data masking, performance optimization, and admin integration. `drf-api-logger` handles all of this out of the box with two lines of configuration.
 

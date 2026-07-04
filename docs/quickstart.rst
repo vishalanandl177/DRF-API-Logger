@@ -170,6 +170,32 @@ For extra context, return only opaque IDs from an allowlisted callback:
            "client_id": getattr(request, "client_id", None),
        }
 
+Safe Observability Integrations
+-------------------------------
+
+Use the observability helpers from signal listeners when your application
+already owns Prometheus, OpenTelemetry, or Sentry setup:
+
+.. code-block:: python
+
+   from drf_api_logger import API_LOGGER_SIGNAL
+   from drf_api_logger.observability import (
+       annotate_opentelemetry_span,
+       configure_sentry_scope,
+       record_prometheus_metrics,
+   )
+
+   def export_observability(**kwargs):
+       record_prometheus_metrics(kwargs, API_REQUESTS, API_DURATION)
+       annotate_opentelemetry_span(current_span, kwargs)
+       configure_sentry_scope(sentry_scope, kwargs)
+
+   API_LOGGER_SIGNAL.listen += export_observability
+
+Prometheus labels are limited to route, URL name, app name, namespace, status
+class, and method. Request IDs and trace IDs are available for logs, traces, and
+Sentry context, not metrics labels.
+
 Retention and Pruning
 ---------------------
 
