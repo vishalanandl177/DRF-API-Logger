@@ -40,6 +40,7 @@ Key Features
 - Database logging and/or real-time signal notifications
 - Built-in admin dashboard with charts and performance metrics
 - Per-request API profiling with auto-diagnosis of bottlenecks
+- Request correlation through request attributes, logging context, and signals
 
 
 Supported Versions
@@ -176,6 +177,8 @@ Signal data structure:
        'tracing_id': 'uuid4-string',       # if tracing enabled
        'profiling_data': { ... },           # if profiling enabled
        'sql_query_count': 5,                # if profiling enabled
+       'correlation': { ... },              # if correlation enabled
+       'low_cardinality': { ... },          # if correlation enabled
    }
 
 
@@ -347,6 +350,26 @@ Configuration Reference
      - str
      - ``None``
      - Header name to read tracing ID from
+   * - ``DRF_API_LOGGER_ENABLE_CORRELATION``
+     - bool
+     - ``False``
+     - Enable request correlation metadata without adding database columns
+   * - ``DRF_API_LOGGER_CORRELATION_REQUEST_ID_HEADERS``
+     - list
+     - ``['X-Request-ID', 'X-Correlation-ID']``
+     - Headers checked for inbound request IDs
+   * - ``DRF_API_LOGGER_CORRELATION_TRACE_ID_HEADERS``
+     - list
+     - ``['traceparent', 'X-Trace-ID']``
+     - Headers checked for W3C traceparent or trace IDs
+   * - ``DRF_API_LOGGER_CORRELATION_CONTEXT_FUNC``
+     - str
+     - ``None``
+     - Dotted-path callback returning allowlisted opaque context IDs
+   * - ``DRF_API_LOGGER_ENABLE_LOGGING_CONTEXT``
+     - bool
+     - ``False``
+     - Expose correlation metadata through a ContextVar during the view call
    * - ``DRF_API_LOGGER_CUSTOM_HANDLER``
      - str
      - ``None``
@@ -438,6 +461,79 @@ Read tracing ID from request header:
 .. code-block:: python
 
    DRF_API_LOGGER_TRACING_ID_HEADER_NAME = 'X-Trace-ID'
+
+
+Request Correlation
+===================
+
+Enable request correlation to connect API logger events with application logs,
+upstream gateways, distributed traces, or metrics labels:
+
+.. code-block:: python
+
+   DRF_API_LOGGER_ENABLE_CORRELATION = True
+   DRF_API_LOGGER_CORRELATION_REQUEST_ID_HEADERS = ["X-Request-ID", "X-Correlation-ID"]
+   DRF_API_LOGGER_CORRELATION_TRACE_ID_HEADERS = ["traceparent", "X-Trace-ID"]
+   DRF_API_LOGGER_ENABLE_LOGGING_CONTEXT = True
+
+Correlation metadata is intentionally not stored in ``APILogsModel``. Enabling
+it does not add model fields, migrations, admin columns, database indexes, or
+synthetic fields in queued database log rows.
+
+When enabled, request handlers can read:
+
+- ``request.api_logger_correlation``
+- ``request.api_logger_low_cardinality``
+- ``request.api_logger_request_id``
+- ``request.api_logger_trace_id``
+- ``drf_api_logger.logging_context.get_correlation_context()``
+
+Signal listeners receive ``correlation`` and ``low_cardinality`` keys. Use the
+low-cardinality dictionary for metrics tags such as route, URL name, and status
+class. Keep high-cardinality request and trace IDs in logs or trace systems, not
+metrics labels.
+
+.. code-block:: python
+
+   from drf_api_logger import API_LOGGER_SIGNAL
+
+   def forward_api_event(**kwargs):
+       labels = kwargs.get("low_cardinality", {})
+       correlation = kwargs.get("correlation", {})
+       metrics.count(
+           "drf_api_logger.request",
+           tags={
+               "route": labels.get("route"),
+               "status_class": labels.get("status_class"),
+           },
+       )
+       app_logger.info(
+           "api request observed",
+           extra={
+               "request_id": correlation.get("request_id"),
+               "trace_id": correlation.get("trace_id"),
+           },
+       )
+
+   API_LOGGER_SIGNAL.listen += forward_api_event
+
+Add opaque, non-sensitive context through an allowlisted callback:
+
+.. code-block:: python
+
+   DRF_API_LOGGER_CORRELATION_CONTEXT_FUNC = "myapp.logging.api_logger_context"
+
+   def api_logger_context(request):
+       return {
+           "actor_id": getattr(request.user, "pk", None),
+           "tenant_id": getattr(request, "tenant_id", None),
+           "api_consumer_id": getattr(request, "api_consumer_id", None),
+           "client_id": getattr(request, "client_id", None),
+       }
+
+Only ``actor_id``, ``tenant_id``, ``api_consumer_id``, and ``client_id`` are
+accepted from the callback. Do not return names, emails, tokens, or other
+identifying values.
 
 
 Path Configuration

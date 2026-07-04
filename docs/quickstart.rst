@@ -119,6 +119,57 @@ Or accept an upstream request ID:
    DRF_API_LOGGER_ENABLE_TRACING = True
    DRF_API_LOGGER_TRACING_ID_HEADER_NAME = "X-Request-ID"
 
+Request Correlation Without New DB Columns
+------------------------------------------
+
+Use correlation when the application needs request IDs, W3C ``traceparent``
+trace IDs, route metadata, or metrics labels without adding fields to the
+``drf_api_logs`` table.
+
+.. code-block:: python
+
+   DRF_API_LOGGER_SIGNAL = True
+   DRF_API_LOGGER_ENABLE_CORRELATION = True
+   DRF_API_LOGGER_CORRELATION_REQUEST_ID_HEADERS = ["X-Request-ID", "X-Correlation-ID"]
+   DRF_API_LOGGER_CORRELATION_TRACE_ID_HEADERS = ["traceparent", "X-Trace-ID"]
+   DRF_API_LOGGER_ENABLE_LOGGING_CONTEXT = True
+
+Correlation data is exposed on the request object, in
+``drf_api_logger.logging_context.get_correlation_context()``, and in signal
+payload keys named ``correlation`` and ``low_cardinality``. It is not written to
+``APILogsModel`` and does not require migrations, model fields, admin columns,
+or database indexes.
+
+.. code-block:: python
+
+   from drf_api_logger import API_LOGGER_SIGNAL
+
+   def send_api_metrics(**kwargs):
+       labels = kwargs.get("low_cardinality", {})
+       metrics.count(
+           "drf_api_logger.request",
+           tags={
+               "route": labels.get("route"),
+               "status_class": labels.get("status_class"),
+           },
+       )
+
+   API_LOGGER_SIGNAL.listen += send_api_metrics
+
+For extra context, return only opaque IDs from an allowlisted callback:
+
+.. code-block:: python
+
+   DRF_API_LOGGER_CORRELATION_CONTEXT_FUNC = "myapp.logging.api_logger_context"
+
+   def api_logger_context(request):
+       return {
+           "actor_id": getattr(request.user, "pk", None),
+           "tenant_id": getattr(request, "tenant_id", None),
+           "api_consumer_id": getattr(request, "api_consumer_id", None),
+           "client_id": getattr(request, "client_id", None),
+       }
+
 Retention and Pruning
 ---------------------
 

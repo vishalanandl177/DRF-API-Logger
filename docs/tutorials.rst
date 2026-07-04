@@ -134,6 +134,41 @@ Log the same ID in application code:
        tracing_id = getattr(request, "tracing_id", "missing")
        logger.info("example_view started", extra={"tracing_id": tracing_id})
 
+Correlate Logs Without Persisting IDs
+-------------------------------------
+
+Use request correlation when application logs, gateway IDs, and metrics need to
+line up, but the log table should keep its existing schema.
+
+.. code-block:: python
+
+   DRF_API_LOGGER_SIGNAL = True
+   DRF_API_LOGGER_ENABLE_CORRELATION = True
+   DRF_API_LOGGER_ENABLE_LOGGING_CONTEXT = True
+   DRF_API_LOGGER_CORRELATION_REQUEST_ID_HEADERS = ["X-Request-ID", "X-Correlation-ID"]
+   DRF_API_LOGGER_CORRELATION_TRACE_ID_HEADERS = ["traceparent", "X-Trace-ID"]
+
+.. code-block:: python
+
+   from drf_api_logger import API_LOGGER_SIGNAL
+
+   def send_metrics(**kwargs):
+       labels = kwargs.get("low_cardinality", {})
+       metrics.count(
+           "drf_api_logger.request",
+           tags={
+               "route": labels.get("route"),
+               "status_class": labels.get("status_class"),
+           },
+       )
+
+   API_LOGGER_SIGNAL.listen += send_metrics
+
+Correlation adds ``correlation`` and ``low_cardinality`` to signal payloads and
+sets request attributes such as ``request.api_logger_request_id``. It does not
+add model fields, migrations, admin columns, database indexes, or extra queued
+database payload fields.
+
 Community Snippets
 ------------------
 

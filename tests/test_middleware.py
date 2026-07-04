@@ -350,6 +350,92 @@ class TestAPILoggerMiddleware(TestCase):
             API_LOGGER_SIGNAL.listen -= listener
 
     @override_settings(
+        DRF_API_LOGGER_SIGNAL=True,
+        DRF_API_LOGGER_ENABLE_CORRELATION=True,
+        DRF_API_LOGGER_ENABLE_LOGGING_CONTEXT=True
+    )
+    @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
+    def test_correlation_context_on_request_logging_context_and_signal(self, mock_resolve):
+        """Test correlation context is exposed outside DB persistence."""
+        mock_resolve.return_value.namespace = None
+        mock_resolve.return_value.app_name = None
+        mock_resolve.return_value.url_name = 'test'
+        mock_resolve.return_value.route = 'api/test/'
+        mock_resolve.return_value.func = self.get_response
+
+        from drf_api_logger import API_LOGGER_SIGNAL
+        from drf_api_logger.logging_context import get_correlation_context
+
+        signal_data = []
+        captured = {}
+
+        def listener(**kwargs):
+            signal_data.append(kwargs)
+
+        def correlated_response(request):
+            captured['request_context'] = request.api_logger_correlation.copy()
+            captured['logging_context'] = get_correlation_context()
+            return self.get_response(request)
+
+        API_LOGGER_SIGNAL.listen += listener
+        try:
+            middleware = APILoggerMiddleware(get_response=correlated_response)
+            request = self.factory.get(
+                '/api/test/',
+                HTTP_X_REQUEST_ID='req-123',
+                HTTP_TRACEPARENT='00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01',
+            )
+            response = middleware(request)
+
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(request.api_logger_request_id, 'req-123')
+            self.assertEqual(request.api_logger_trace_id, '4bf92f3577b34da6a3ce929d0e0e4736')
+            self.assertEqual(request.tracing_id, '4bf92f3577b34da6a3ce929d0e0e4736')
+            self.assertEqual(captured['request_context']['request_id'], 'req-123')
+            self.assertEqual(captured['logging_context']['trace_id'], '4bf92f3577b34da6a3ce929d0e0e4736')
+            self.assertEqual(get_correlation_context(), {})
+
+            self.assertEqual(signal_data[0]['correlation']['request_id'], 'req-123')
+            self.assertEqual(signal_data[0]['correlation']['status_class'], '2xx')
+            self.assertEqual(signal_data[0]['low_cardinality']['route'], 'api/test/')
+            self.assertEqual(signal_data[0]['low_cardinality']['status_class'], '2xx')
+            self.assertNotIn('request_id', signal_data[0]['low_cardinality'])
+        finally:
+            API_LOGGER_SIGNAL.listen -= listener
+
+    @override_settings(
+        DRF_API_LOGGER_SIGNAL=True,
+        DRF_API_LOGGER_ENABLE_CORRELATION=True,
+        DRF_API_LOGGER_ENABLE_TRACING=False
+    )
+    @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
+    def test_correlation_does_not_generate_trace_ids_when_tracing_is_disabled(self, mock_resolve):
+        """Test correlation remains inbound-only when tracing is off."""
+        mock_resolve.return_value.namespace = None
+        mock_resolve.return_value.app_name = None
+        mock_resolve.return_value.url_name = 'test'
+        mock_resolve.return_value.route = 'api/test/'
+        mock_resolve.return_value.func = self.get_response
+
+        from drf_api_logger import API_LOGGER_SIGNAL
+
+        signal_data = []
+        def listener(**kwargs):
+            signal_data.append(kwargs)
+
+        API_LOGGER_SIGNAL.listen += listener
+        try:
+            middleware = APILoggerMiddleware(get_response=self.get_response)
+            request = self.factory.get('/api/test/')
+            response = middleware(request)
+
+            self.assertEqual(response.status_code, 200)
+            self.assertFalse(hasattr(request, 'tracing_id'))
+            self.assertNotIn('trace_id', signal_data[0]['correlation'])
+        finally:
+            API_LOGGER_SIGNAL.listen -= listener
+
+    @override_settings(
         DRF_API_LOGGER_DATABASE=True,
         DRF_API_LOGGER_PATH_TYPE='FULL_PATH'
     )

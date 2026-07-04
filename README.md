@@ -65,6 +65,7 @@ DRF API Logger automatically captures and stores comprehensive API information:
 - **📈 Analytics**: Built-in admin dashboard with charts and performance metrics
 - **🔧 Highly Configurable**: Extensive filtering and customization options
 - **🔬 API Profiling**: Per-request latency breakdown with auto-diagnosis (SQL, middleware, business logic)
+- **Request Correlation**: Opt-in request IDs, traceparent parsing, route metadata, logging context, and signal metadata without new database columns
 
 ### 🌐 Community & Support
 
@@ -433,6 +434,74 @@ def my_api_view(request):
         logger.info(f"Processing request {request.tracing_id}")
     return Response({'status': 'ok'})
 ```
+
+### Request Correlation
+
+Enable correlation when you need to connect DRF API Logger events with
+application logs, upstream gateway request IDs, distributed traces, or metrics
+labels without changing the log table schema.
+
+```python
+DRF_API_LOGGER_ENABLE_CORRELATION = True
+DRF_API_LOGGER_CORRELATION_REQUEST_ID_HEADERS = ["X-Request-ID", "X-Correlation-ID"]
+DRF_API_LOGGER_CORRELATION_TRACE_ID_HEADERS = ["traceparent", "X-Trace-ID"]
+DRF_API_LOGGER_ENABLE_LOGGING_CONTEXT = True
+```
+
+Correlation is intentionally not persisted to `APILogsModel`. It does not add
+model fields, migrations, admin columns, database indexes, or synthetic payload
+fields to queued database log rows. When enabled, metadata is available through:
+
+- `request.api_logger_correlation`
+- `request.api_logger_low_cardinality`
+- `request.api_logger_request_id`
+- `request.api_logger_trace_id`
+- `drf_api_logger.logging_context.get_correlation_context()`
+- signal payload keys: `correlation` and `low_cardinality`
+
+Example signal listener:
+
+```python
+from drf_api_logger import API_LOGGER_SIGNAL
+
+def forward_to_metrics(**kwargs):
+    labels = kwargs.get("low_cardinality", {})
+    correlation = kwargs.get("correlation", {})
+    metrics.count(
+        "drf_api_logger.request",
+        tags={
+            "route": labels.get("route"),
+            "status_class": labels.get("status_class"),
+        },
+    )
+    logger.info(
+        "api request observed",
+        extra={
+            "request_id": correlation.get("request_id"),
+            "trace_id": correlation.get("trace_id"),
+        },
+    )
+
+API_LOGGER_SIGNAL.listen += forward_to_metrics
+```
+
+Add opaque, non-sensitive context values through an allowlisted callback:
+
+```python
+DRF_API_LOGGER_CORRELATION_CONTEXT_FUNC = "myapp.logging.api_logger_context"
+
+def api_logger_context(request):
+    return {
+        "actor_id": getattr(request.user, "pk", None),
+        "tenant_id": getattr(request, "tenant_id", None),
+        "api_consumer_id": getattr(request, "api_consumer_id", None),
+        "client_id": getattr(request, "client_id", None),
+    }
+```
+
+Only `actor_id`, `tenant_id`, `api_consumer_id`, and `client_id` are accepted
+from the callback. Use opaque IDs, not names, emails, tokens, or other
+identifying values.
 
 ## 📊 Programmatic Access
 
