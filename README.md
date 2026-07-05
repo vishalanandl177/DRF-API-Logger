@@ -160,6 +160,11 @@ DRF_API_LOGGER_DATABASE = True
 - 🎛️ **Smart Filtering**: Filter by date, status code, HTTP method, and performance
 - 📈 **Visual Analytics**: Built-in performance charts and statistics
 
+Admin graphs are collapsed by default and loaded on demand when opened, keeping
+the log list fast and focused during routine investigation. Each graph has its
+own control and fetches its backend data only when opened; graph data requests
+time out after 30 seconds.
+
 ### Admin Dashboard Screenshots
 
 **Admin Home**

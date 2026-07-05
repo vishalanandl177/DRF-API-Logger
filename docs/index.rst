@@ -110,6 +110,10 @@ Enable database storage for API logs:
    DRF_API_LOGGER_DATABASE = True  # Default: False
 
 Logs will be available in the Django Admin Panel with search, filtering, and analytics charts.
+Admin graphs are collapsed by default and loaded on demand when opened, keeping
+the log list fast and focused during routine investigation. Each graph has its
+own control and fetches its backend data only when opened; graph data requests
+time out after 30 seconds.
 
 .. note::
 

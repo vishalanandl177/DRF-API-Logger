@@ -1,162 +1,326 @@
 {% extends "admin/change_list.html" %}
 {% load static %}
 
-<!-- Override extrahead to add Chart.js -->
+<!-- Override extrahead to add chart assets and per-graph lazy rendering. -->
 {% block extrahead %}
 {{ block.super }}
 <link rel="stylesheet" href="{% static "drf_api_logger/css/Chart.min.css" %}" />
-<script src="{% static "drf_api_logger/js/Chart.bundle.min.js" %}"></script>
+<style>
+  .api-log-chart-summary {
+    border: 1px solid var(--hairline-color, #d8d8d8);
+    border-radius: 4px;
+    margin: 0 0 16px;
+    padding: 12px 16px;
+    background: var(--body-bg, #fff);
+  }
+
+  .api-log-chart-summary p {
+    margin: 0 0 10px;
+    color: var(--body-quiet-color, #666);
+  }
+
+  .api-log-chart-card {
+    border: 1px solid var(--hairline-color, #d8d8d8);
+    border-radius: 4px;
+    box-sizing: border-box;
+    margin: 0 0 14px;
+    padding: 14px 16px;
+    width: 100%;
+    background: var(--body-bg, #fff);
+  }
+
+  .api-log-chart-card-header {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+  }
+
+  .api-log-chart-card h2 {
+    font-size: 14px;
+    margin: 0;
+  }
+
+  .api-log-chart-toggle {
+    border: 1px solid var(--border-color, #ccc);
+    border-radius: 4px;
+    padding: 6px 12px;
+    cursor: pointer;
+    background: var(--button-bg, #417690);
+    color: var(--button-fg, #fff);
+    font: inherit;
+  }
+
+  .api-log-chart-toggle:hover,
+  .api-log-chart-toggle:focus {
+    background: var(--button-hover-bg, #205067);
+  }
+
+  .api-log-chart-panel {
+    height: 200px;
+    margin-top: 14px;
+    max-height: 200px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .api-log-chart-panel[hidden],
+  .api-log-chart-message[hidden] {
+    display: none;
+  }
+
+  .api-log-chart-panel canvas {
+    display: block;
+    height: 200px !important;
+    max-height: 200px;
+    width: 100% !important;
+  }
+
+  .api-log-chart-message {
+    color: var(--body-quiet-color, #666);
+    margin: 12px 0 0;
+  }
+</style>
 <script>
-
 document.addEventListener('DOMContentLoaded', () => {
-  const ctx = document.getElementById('countChart').getContext('2d');
+  const chartScriptUrl = '{% static "drf_api_logger/js/Chart.bundle.min.js" %}';
+  const graphApiTimeoutMs = 30000;
+  let chartScriptLoading = null;
 
-  const chartData = [
-    {% for item in analytics %}
-    {"date": "{{ item.added_on__date.isoformat }}", "y": {{ item.total }}},
-    {% endfor %}
-  ];
+  document.querySelectorAll('.api-log-chart-toggle').forEach((toggle) => {
+    toggle.addEventListener('click', () => {
+      const card = toggle.closest('.api-log-chart-card');
+      const panel = card.querySelector('.api-log-chart-panel');
+      const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
 
-  // Parse the dates to JS
-  chartData.forEach((d) => {
-    d.x = new Date(d.date);
+      toggle.setAttribute('aria-expanded', String(!isExpanded));
+      toggle.textContent = isExpanded ? 'Show' : 'Hide';
+      panel.hidden = isExpanded;
+
+      if (!isExpanded && card.dataset.loaded !== 'true') {
+        loadChartData(card);
+      }
+    });
   });
 
-  // Render the chart
-  const chart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      datasets: [
-        {
-          label: 'Number of API calls',
+  function loadChartScript() {
+    if (window.Chart) {
+      return Promise.resolve();
+    }
+    if (chartScriptLoading) {
+      return chartScriptLoading;
+    }
+
+    chartScriptLoading = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = chartScriptUrl;
+      script.async = true;
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+    return chartScriptLoading;
+  }
+
+  function buildChartUrl(card) {
+    const chartUrl = new URL(card.dataset.chartUrl, window.location.href);
+    chartUrl.search = window.location.search;
+    return chartUrl;
+  }
+
+  function loadChartData(card) {
+    if (card.dataset.loading === 'true') {
+      return;
+    }
+    card.dataset.loading = 'true';
+    showMessage(card, 'loading');
+
+    const chartUrl = buildChartUrl(card);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), graphApiTimeoutMs);
+    Promise.all([
+      loadChartScript(),
+      fetch(chartUrl, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        signal: controller.signal,
+      }),
+    ]).then((responses) => {
+      const response = responses[1];
+      if (!response.ok) {
+        throw new Error('Chart data request failed.');
+      }
+      return response.json();
+    }).then((payload) => {
+      clearTimeout(timeoutId);
+      renderCharts(card, payload);
+      card.dataset.loaded = 'true';
+      card.dataset.loading = 'false';
+      showMessage(card, null);
+    }).catch(() => {
+      clearTimeout(timeoutId);
+      card.dataset.loading = 'false';
+      showMessage(card, 'error');
+    });
+  }
+
+  function showMessage(card, role) {
+    card.querySelectorAll('.api-log-chart-message').forEach((message) => {
+      message.hidden = message.dataset.role !== role;
+    });
+  }
+
+  function renderCharts(card, payload) {
+    if (payload.chart === 'api-calls-by-day') {
+      renderTimeSeriesChart(card, payload);
+      return;
+    }
+    if (payload.chart === 'api-calls-by-status-code') {
+      renderStatusCodeChart(card, payload);
+      return;
+    }
+    if (payload.chart === 'sql-queries-by-day') {
+      renderTimeSeriesChart(card, payload);
+    }
+  }
+
+  function renderTimeSeriesChart(card, payload) {
+    const ctx = card.querySelector('canvas').getContext('2d');
+    const chartData = payload.data.map((item) => ({
+      x: new Date(item.x),
+      y: item.y,
+    }));
+
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        datasets: [{
+          label: payload.label,
           data: chartData,
-          backgroundColor: 'rgb(33,150,243)',
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      scales: {
-        xAxes: [
-          {
+          backgroundColor: payload.chart === 'sql-queries-by-day'
+            ? 'rgb(255, 152, 0)'
+            : 'rgb(33,150,243)',
+        }],
+      },
+      options: {
+        maintainAspectRatio: false,
+        responsive: true,
+        scales: {
+          xAxes: [{
             type: 'time',
             time: {
               unit: 'day',
               round: 'day',
               tooltipFormat:'DD/MM/YYYY',
-              displayFormats: {
-                day: 'MMM D',
-              },
+              displayFormats: { day: 'MMM D' },
             },
-          },
-        ],
-        yAxes: [
-          {
-            ticks: {
-              beginAtZero: true,
-            },
-          },
-        ],
+          }],
+          yAxes: [{
+            ticks: { beginAtZero: true },
+          }],
+        },
       },
-    },
-  });
+    });
+  }
 
-  var color = Chart.helpers.color;
-
-  var barChartData = {
-      labels: {{ status_code_count_keys }},
-      datasets: [{
-          label: 'Number of API calls by status code',
+  function renderStatusCodeChart(card, payload) {
+    const ctx = card.querySelector('canvas').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: payload.labels,
+        datasets: [{
+          label: payload.label,
           backgroundColor: 'rgb(33,150,243)',
           borderColor: 'rgb(33,150,243)',
           borderWidth: 1,
-          data: {{ status_code_count_values }}
-      }]
-  };
-
-  window.onload = function() {
-      var ctx = document.getElementById('statusCodeChart').getContext('2d');
-      window.myBar = new Chart(ctx, {
-          type: 'bar',
-          data: barChartData,
-          options: {
-              responsive: true,
-              legend: {
-                  position: 'top',
-              },
-              title: {
-                  display: true,
-                  text: 'API calls by status code'
-              }
-          }
-      });
-
-      {% if profiling_enabled and sql_distribution %}
-      var sqlCtx = document.getElementById('sqlQueryChart').getContext('2d');
-      var sqlChartData = [
-        {% for item in sql_distribution %}
-        {"date": "{{ item.added_on__date.isoformat }}", "y": {{ item.avg_queries|floatformat:1 }}},
-        {% endfor %}
-      ];
-
-      sqlChartData.forEach(function(d) {
-        d.x = new Date(d.date);
-      });
-
-      new Chart(sqlCtx, {
-        type: 'bar',
-        data: {
-          datasets: [{
-            label: 'Avg SQL queries per request',
-            data: sqlChartData,
-            backgroundColor: 'rgb(255, 152, 0)',
-          }]
+          data: payload.values,
+        }],
+      },
+      options: {
+        maintainAspectRatio: false,
+        responsive: true,
+        legend: { position: 'top' },
+        title: {
+          display: true,
+          text: 'API calls by status code',
         },
-        options: {
-          responsive: true,
-          scales: {
-            xAxes: [{
-              type: 'time',
-              time: {
-                unit: 'day',
-                round: 'day',
-                tooltipFormat: 'DD/MM/YYYY',
-                displayFormats: { day: 'MMM D' }
-              }
-            }],
-            yAxes: [{
-              ticks: { beginAtZero: true },
-              scaleLabel: {
-                display: true,
-                labelString: 'Queries'
-              }
-            }]
-          },
-          title: {
-            display: true,
-            text: 'Average SQL queries per request (daily)'
-          }
-        }
-      });
-      {% endif %}
-  };
+      },
+    });
+  }
 });
 </script>
 {% endblock %}
 
 {% block content %}
-<!-- Render our chart -->
-<div style="width: 80%;">
-  <canvas style="margin-bottom: 30px; width: 60%; height: 50%;" id="countChart"></canvas>
+<div class="api-log-chart-summary">
+  <p><strong>API log graphs</strong></p>
 </div>
-<div style="width: 80%; margin-top: 24px;">
-  <canvas style="margin-bottom: 30px; width: 60%; height: 50%;" id="statusCodeChart"></canvas>
+
+<div
+  class="api-log-chart-card"
+  data-chart="api-calls-by-day"
+  data-chart-url="chart-data/api-calls-by-day/"
+>
+  <div class="api-log-chart-card-header">
+    <h2>API calls by day</h2>
+    <button
+      type="button"
+      class="api-log-chart-toggle"
+      aria-controls="api-log-chart-api-calls-by-day"
+      aria-expanded="false"
+    >Show</button>
+  </div>
+  <p class="api-log-chart-message" data-role="loading" hidden>Loading graph data...</p>
+  <p class="api-log-chart-message" data-role="error" hidden>Graph data could not be loaded. Try again.</p>
+  <div class="api-log-chart-panel" id="api-log-chart-api-calls-by-day" hidden>
+    <canvas id="apiCallsByDayChart"></canvas>
+  </div>
 </div>
+
+<div
+  class="api-log-chart-card"
+  data-chart="api-calls-by-status-code"
+  data-chart-url="chart-data/api-calls-by-status-code/"
+>
+  <div class="api-log-chart-card-header">
+    <h2>API calls by status code</h2>
+    <button
+      type="button"
+      class="api-log-chart-toggle"
+      aria-controls="api-log-chart-api-calls-by-status-code"
+      aria-expanded="false"
+    >Show</button>
+  </div>
+  <p class="api-log-chart-message" data-role="loading" hidden>Loading graph data...</p>
+  <p class="api-log-chart-message" data-role="error" hidden>Graph data could not be loaded. Try again.</p>
+  <div class="api-log-chart-panel" id="api-log-chart-api-calls-by-status-code" hidden>
+    <canvas id="statusCodeChart"></canvas>
+  </div>
+</div>
+
 {% if profiling_enabled %}
-<div style="width: 80%; margin-top: 24px;">
-  <canvas style="margin-bottom: 30px; width: 60%; height: 50%;" id="sqlQueryChart"></canvas>
+<div
+  class="api-log-chart-card"
+  data-chart="sql-queries-by-day"
+  data-chart-url="chart-data/sql-queries-by-day/"
+>
+  <div class="api-log-chart-card-header">
+    <h2>Average SQL queries per request</h2>
+    <button
+      type="button"
+      class="api-log-chart-toggle"
+      aria-controls="api-log-chart-sql-queries-by-day"
+      aria-expanded="false"
+    >Show</button>
+  </div>
+  <p class="api-log-chart-message" data-role="loading" hidden>Loading graph data...</p>
+  <p class="api-log-chart-message" data-role="error" hidden>Graph data could not be loaded. Try again.</p>
+  <div class="api-log-chart-panel" id="api-log-chart-sql-queries-by-day" hidden>
+    <canvas id="sqlQueryChart"></canvas>
+  </div>
 </div>
 {% endif %}
+
 <!-- Render the rest of the ChangeList view -->
 {{ block.super }}
 {% endblock %}

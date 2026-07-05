@@ -3,7 +3,8 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib import admin
 from django.db.models import Count, Avg
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse, JsonResponse
+from django.urls import path
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
 from drf_api_logger.utils import database_log_enabled
@@ -390,46 +391,89 @@ if database_log_enabled():
         change_form_template = 'change_form.html'
         date_hierarchy = 'added_on'
 
+        def get_urls(self):
+            urls = super().get_urls()
+            opts = self.model._meta
+            custom_urls = [
+                path(
+                    'chart-data/<slug:chart_name>/',
+                    self.admin_site.admin_view(self.chart_data_view),
+                    name='{}_{}_chart_data'.format(opts.app_label, opts.model_name),
+                ),
+            ]
+            return custom_urls + urls
+
         def changelist_view(self, request, extra_context=None):
             """
-            Override to inject custom chart data for status codes and analytics into the context.
+            Add lightweight chart configuration without precomputing chart data.
             """
             response = super(APILogsAdmin, self).changelist_view(request, extra_context)
             try:
-                filtered_query_set = response.context_data["cl"].queryset
+                response.context_data
             except Exception:
                 return response
 
-            # Aggregate logs by date
-            analytics_model = filtered_query_set.values('added_on__date').annotate(
-                total=Count('id')
-            ).order_by('total')
-
-            # Count each unique status code
-            status_code_count_mode = filtered_query_set.values('id').values('status_code').annotate(
-                total=Count('id')).order_by('status_code')
-
-            status_code_count_keys = [item.get('status_code') for item in status_code_count_mode]
-            status_code_count_values = [item.get('total') for item in status_code_count_mode]
-
-            # Add chart data to context
-            extra_context = dict(
-                analytics=analytics_model,
-                status_code_count_keys=status_code_count_keys,
-                status_code_count_values=status_code_count_values
-            )
-
-            # Add profiling chart data when profiling is enabled
-            if self._DRF_API_LOGGER_ENABLE_PROFILING:
-                profiled_qs = filtered_query_set.filter(sql_query_count__isnull=False)
-                sql_distribution = profiled_qs.values('added_on__date').annotate(
-                    avg_queries=Avg('sql_query_count')
-                ).order_by('added_on__date')
-                extra_context['sql_distribution'] = list(sql_distribution)
-                extra_context['profiling_enabled'] = True
-
-            response.context_data.update(extra_context)
+            response.context_data.update({
+                'profiling_enabled': bool(
+                    getattr(settings, 'DRF_API_LOGGER_ENABLE_PROFILING', False)
+                ),
+            })
             return response
+
+        def chart_data_view(self, request, chart_name):
+            queryset = self.get_changelist_instance(request).queryset
+            if chart_name == 'api-calls-by-day':
+                return JsonResponse(self._api_calls_by_day_chart_data(queryset))
+            if chart_name == 'api-calls-by-status-code':
+                return JsonResponse(self._api_calls_by_status_code_chart_data(queryset))
+            if chart_name == 'sql-queries-by-day':
+                if not getattr(settings, 'DRF_API_LOGGER_ENABLE_PROFILING', False):
+                    raise Http404('Chart is not available when profiling is disabled.')
+                return JsonResponse(self._sql_queries_by_day_chart_data(queryset))
+            raise Http404('Unknown chart.')
+
+        def _api_calls_by_day_chart_data(self, queryset):
+            rows = queryset.values('added_on__date').annotate(
+                total=Count('id')
+            ).order_by('added_on__date')
+            return {
+                'chart': 'api-calls-by-day',
+                'label': 'Number of API calls',
+                'data': [
+                    {
+                        'x': item['added_on__date'].isoformat(),
+                        'y': item['total'],
+                    }
+                    for item in rows
+                ],
+            }
+
+        def _api_calls_by_status_code_chart_data(self, queryset):
+            rows = queryset.values('status_code').annotate(
+                total=Count('id')
+            ).order_by('status_code')
+            return {
+                'chart': 'api-calls-by-status-code',
+                'label': 'Number of API calls by status code',
+                'labels': [item['status_code'] for item in rows],
+                'values': [item['total'] for item in rows],
+            }
+
+        def _sql_queries_by_day_chart_data(self, queryset):
+            rows = queryset.filter(sql_query_count__isnull=False).values(
+                'added_on__date'
+            ).annotate(avg_queries=Avg('sql_query_count')).order_by('added_on__date')
+            return {
+                'chart': 'sql-queries-by-day',
+                'label': 'Avg SQL queries per request',
+                'data': [
+                    {
+                        'x': item['added_on__date'].isoformat(),
+                        'y': round(float(item['avg_queries']), 1),
+                    }
+                    for item in rows
+                ],
+            }
 
         def get_queryset(self, request):
             """
