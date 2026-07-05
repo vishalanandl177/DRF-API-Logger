@@ -7,7 +7,7 @@ retention, and health checks.
 Supported Runtime Matrix
 ------------------------
 
-DRF API Logger 1.2.3 supports:
+DRF API Logger 1.3.0 supports:
 
 - Python 3.10+
 - Django 4.2+

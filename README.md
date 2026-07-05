@@ -1,6 +1,6 @@
 # DRF API Logger
 
-[![Version](https://img.shields.io/badge/version-1.2.3-blue.svg)](https://github.com/vishalanandl177/DRF-API-Logger)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/vishalanandl177/DRF-API-Logger)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org)
 [![Django](https://img.shields.io/badge/django-4.2%2B-green.svg)](https://djangoproject.com)
 [![DRF](https://img.shields.io/badge/djangorestframework-3.16%2B-orange.svg)](https://www.django-rest-framework.org)

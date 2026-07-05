@@ -11,7 +11,7 @@ def get_long_desc():
 
 setuptools.setup(
     name="drf-api-logger",
-    version="1.2.3",
+    version="1.3.0",
     author="Vishal Anand",
     author_email="vishalanandl177@gmail.com",
     description="The production standard for DRF API observability: request/response logging, profiling, masking, and admin analytics.",
