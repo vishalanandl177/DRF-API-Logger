@@ -302,6 +302,17 @@ class DocumentationContentTests(unittest.TestCase):
         for content in (readme, quickstart, operations, testing, developer_testing, developer_testing_md):
             self.assertIn("ASGI", content)
 
+    def test_admin_chart_lazy_loading_is_documented(self):
+        readme = read_text("README.md")
+        index = read_text("docs/index.rst")
+
+        for content in (readme, index):
+            self.assertIn("collapsed by default", content)
+            self.assertIn("loaded on demand", content)
+            self.assertIn("Each graph", content)
+            self.assertIn("fetches its backend data only when opened", content)
+            self.assertIn("30 seconds", content)
+
 
 if __name__ == "__main__":
     unittest.main()
