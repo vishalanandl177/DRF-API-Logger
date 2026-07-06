@@ -80,6 +80,20 @@ DRF API Logger automatically captures and stores comprehensive API information:
 <a href="https://buymeacoffee.com/riptechlead"><img src="https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Support"/></a>
 </p>
 
+#### Support maintenance
+
+DRF API Logger is free and open source. If your team uses it in production,
+consider supporting ongoing maintenance.
+
+Support helps with:
+
+- Django, DRF, and Python compatibility updates
+- Security, masking, and privacy improvements
+- Bug fixes, issue triage, and release validation
+- Documentation, examples, and production guidance
+
+Support maintenance: [Buy Me a Coffee](https://buymeacoffee.com/riptechlead)
+
 ## 📦 Installation
 
 ### 1. Install Package
