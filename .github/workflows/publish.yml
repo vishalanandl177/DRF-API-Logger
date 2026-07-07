@@ -152,18 +152,30 @@ jobs:
           echo "version=$package_version" >> "$GITHUB_OUTPUT"
           echo "Package: $package_name $package_version"
 
-      - name: Ensure version is not already on PyPI
+      - name: Check whether package version exists on PyPI
+        id: pypi_version
         env:
           PACKAGE_NAME: ${{ steps.package.outputs.name }}
           PACKAGE_VERSION: ${{ steps.package.outputs.version }}
         run: |
           python - <<'PY'
           import os
+          import re
           import sys
           import urllib.error
           import urllib.request
 
-          package_name = os.environ["PACKAGE_NAME"].replace("_", "-")
+          def write_output(name, value):
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+                  output.write(f"{name}={value}\n")
+
+          def write_summary(message):
+              summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+              if summary_path:
+                  with open(summary_path, "a", encoding="utf-8") as summary:
+                      summary.write(f"{message}\n")
+
+          package_name = re.sub(r"[-_.]+", "-", os.environ["PACKAGE_NAME"]).lower()
           package_version = os.environ["PACKAGE_VERSION"]
           if not package_name or not package_version:
               raise SystemExit("PACKAGE_NAME and PACKAGE_VERSION must not be empty.")
@@ -171,26 +183,44 @@ jobs:
           print(f"Checking {url}")
 
           try:
-              urllib.request.urlopen(url, timeout=15)
+              with urllib.request.urlopen(url, timeout=15):
+                  pass
           except urllib.error.HTTPError as exc:
               if exc.code == 404:
                   print(f"{package_name} {package_version} is not on PyPI yet.")
+                  write_output("exists", "false")
+                  write_summary(
+                      f"{package_name} {package_version} is not on PyPI yet. Publishing will continue."
+                  )
                   sys.exit(0)
               raise
 
-          raise SystemExit(
+          print(
               f"{package_name} {package_version} already exists on PyPI. "
-              "Bump setup.py version before merging to main."
+              "Skipping publish and GitHub release steps."
+          )
+          write_output("exists", "true")
+          write_summary(
+              f"{package_name} {package_version} already exists on PyPI. "
+              "Publish and GitHub release steps were skipped."
           )
           PY
 
+      - name: Skip publish because package version already exists
+        if: steps.pypi_version.outputs.exists == 'true'
+        run: |
+          echo "${{ steps.package.outputs.name }} ${{ steps.package.outputs.version }} already exists on PyPI."
+          echo "Publishing and GitHub release creation were skipped."
+
       - name: Download package artifacts
+        if: steps.pypi_version.outputs.exists != 'true'
         uses: actions/download-artifact@v4
         with:
           name: package-dist
           path: dist
 
       - name: Ensure downloaded wheel and source distribution exist
+        if: steps.pypi_version.outputs.exists != 'true'
         run: |
           shopt -s nullglob
           wheel_files=(dist/*.whl)
@@ -212,9 +242,11 @@ jobs:
           printf '%s\n' "${sdist_files[@]}"
 
       - name: Publish package distributions to PyPI
+        if: steps.pypi_version.outputs.exists != 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
 
       - name: Create GitHub release
+        if: steps.pypi_version.outputs.exists != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           PACKAGE_NAME: ${{ steps.package.outputs.name }}
