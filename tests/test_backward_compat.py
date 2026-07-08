@@ -323,11 +323,12 @@ class TestObservabilityCompatibility(TestCase):
 
     def test_observability_helpers_do_not_add_runtime_dependencies(self):
         setup_text = Path(__file__).resolve().parents[1].joinpath("setup.py").read_text(encoding="utf-8")
+        install_requires = setup_text.split("install_requires=[", 1)[1].split("]", 1)[0]
 
-        self.assertNotIn("prometheus-client", setup_text)
-        self.assertNotIn("opentelemetry-api", setup_text)
-        self.assertNotIn("opentelemetry-sdk", setup_text)
-        self.assertNotIn("sentry-sdk", setup_text)
+        self.assertNotIn("prometheus-client", install_requires)
+        self.assertNotIn("opentelemetry-api", install_requires)
+        self.assertNotIn("opentelemetry-sdk", install_requires)
+        self.assertNotIn("sentry-sdk", install_requires)
 
     @override_settings(
         DRF_API_LOGGER_DATABASE=True,
@@ -377,12 +378,13 @@ class TestPolicyCompatibility(TestCase):
 
     def test_policy_helpers_do_not_add_runtime_dependencies(self):
         setup_text = Path(__file__).resolve().parents[1].joinpath("setup.py").read_text(encoding="utf-8")
+        install_requires = setup_text.split("install_requires=[", 1)[1].split("]", 1)[0]
 
-        self.assertNotIn("prometheus-client", setup_text)
-        self.assertNotIn("opentelemetry-api", setup_text)
-        self.assertNotIn("opentelemetry-sdk", setup_text)
-        self.assertNotIn("sentry-sdk", setup_text)
-        self.assertNotIn("celery", setup_text)
+        self.assertNotIn("prometheus-client", install_requires)
+        self.assertNotIn("opentelemetry-api", install_requires)
+        self.assertNotIn("opentelemetry-sdk", install_requires)
+        self.assertNotIn("sentry-sdk", install_requires)
+        self.assertNotIn("celery", install_requires)
 
     @override_settings(
         DRF_API_LOGGER_DATABASE=True,

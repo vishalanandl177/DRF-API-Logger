@@ -1,10 +1,12 @@
 import atexit
 import signal
+import time
 from queue import Empty, Queue
 from importlib import import_module
 from django.conf import settings
 from threading import Thread, Event, Lock
 from django.db.utils import OperationalError
+from drf_api_logger.metrics.recorder import get_recorder
 from drf_api_logger.models import APILogsModel
 
 
@@ -76,6 +78,13 @@ class InsertLogIntoDatabase(Thread):
         if not self._atexit_registered:
             atexit.register(self.shutdown)
             self._atexit_registered = True
+        try:
+            recorder = get_recorder()
+            recorder.increment_worker_restart(self.name or 'insert_log_into_database')
+            recorder.set_worker_up(self.name or 'insert_log_into_database', True)
+            self._record_queue_metrics(recorder)
+        except Exception:
+            pass
         self.start_queue_process()
 
     def put_log_data(self, data):
@@ -90,14 +99,37 @@ class InsertLogIntoDatabase(Thread):
             data = self.custom_handler(data)
             if data is None:
                 self._increment_stat('_dropped_count')
+                try:
+                    recorder = get_recorder()
+                    recorder.increment_dropped_logs('custom_handler')
+                    self._record_queue_metrics(recorder)
+                except Exception:
+                    pass
                 return
 
+        enqueue_start = time.perf_counter()
         try:
             self._queue.put_nowait(APILogsModel(**data))
         except Exception as e:
             self._increment_stat('_dropped_count')
+            try:
+                recorder = get_recorder()
+                recorder.increment_dropped_logs('queue_error')
+                self._record_queue_metrics(recorder)
+            except Exception:
+                pass
             print('DRF API LOGGER EXCEPTION:', e)
             return
+        finally:
+            enqueue_duration = time.perf_counter() - enqueue_start
+
+        try:
+            recorder = get_recorder()
+            recorder.observe_enqueue({'queue_name': 'database'}, enqueue_duration)
+            recorder.increment_enqueued_logs('database')
+            self._record_queue_metrics(recorder)
+        except Exception:
+            pass
 
         # If queue reaches the batch threshold, wake the worker to flush.
         if self._queue.qsize() >= self.DRF_LOGGER_QUEUE_MAX_SIZE:
@@ -140,11 +172,26 @@ class InsertLogIntoDatabase(Thread):
         Raises:
             Exception: If the model doesn't exist or another database error occurs.
         """
+        flush_start = time.perf_counter()
         try:
             APILogsModel.objects.using(self.DRF_API_LOGGER_DEFAULT_DATABASE).bulk_create(bulk_item)
             self._increment_stat('_inserted_count', len(bulk_item))
+            try:
+                recorder = get_recorder()
+                recorder.increment_processed_logs('database', len(bulk_item))
+                recorder.observe_flush('database', time.perf_counter() - flush_start, len(bulk_item))
+                recorder.observe_storage_write('database', time.perf_counter() - flush_start)
+                self._record_queue_metrics(recorder)
+            except Exception:
+                pass
         except OperationalError:
             self._increment_stat('_failed_insert_count', len(bulk_item))
+            try:
+                recorder = get_recorder()
+                recorder.increment_storage_write_failure('database', 'OperationalError')
+                recorder.observe_storage_write('database', time.perf_counter() - flush_start)
+            except Exception:
+                pass
             raise Exception("""
             DRF API LOGGER EXCEPTION
             Model does not exist.
@@ -152,6 +199,12 @@ class InsertLogIntoDatabase(Thread):
             """)
         except Exception as e:
             self._increment_stat('_failed_insert_count', len(bulk_item))
+            try:
+                recorder = get_recorder()
+                recorder.increment_storage_write_failure('database', e.__class__.__name__)
+                recorder.observe_storage_write('database', time.perf_counter() - flush_start)
+            except Exception:
+                pass
             # Logs other unexpected exceptions to the console
             print('DRF API LOGGER EXCEPTION:', e)
 
@@ -182,6 +235,10 @@ class InsertLogIntoDatabase(Thread):
         self._stop_event.set()
         self._flush_event.set()
         self._start_bulk_insertion()
+        try:
+            get_recorder().set_worker_up(self.name or 'insert_log_into_database', False)
+        except Exception:
+            pass
 
     def get_status(self):
         """
@@ -200,3 +257,10 @@ class InsertLogIntoDatabase(Thread):
     def _increment_stat(self, name, amount=1):
         with self._stats_lock:
             setattr(self, name, getattr(self, name) + amount)
+
+    def _record_queue_metrics(self, recorder):
+        depth = self._queue.qsize()
+        capacity = self.DRF_LOGGER_QUEUE_MAX_SIZE
+        recorder.set_queue_depth('database', depth)
+        recorder.set_queue_capacity('database', capacity)
+        recorder.set_queue_utilization('database', depth / capacity if capacity else 0)

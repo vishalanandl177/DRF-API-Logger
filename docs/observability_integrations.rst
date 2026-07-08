@@ -2,9 +2,14 @@ Safe Observability Integrations
 ===============================
 
 DRF API Logger can feed metrics, traces, and error context through signal
-listeners. The package does not start exporters, expose a metrics endpoint, or
-send data to external systems by itself. Applications own their Prometheus,
-OpenTelemetry, Sentry, Loki, Elasticsearch, or hosted monitoring setup.
+listeners. By default, the package does not start exporters, expose a metrics
+endpoint, or send data to external systems by itself. Applications own their
+Prometheus, OpenTelemetry, Sentry, Loki, Elasticsearch, or hosted monitoring
+setup.
+
+For teams that want package-owned logger health and pipeline metrics, DRF API
+Logger also includes an optional first-party Prometheus recorder and internal
+metrics endpoint. See :doc:`metrics` for that opt-in path.
 
 Prerequisites
 -------------
@@ -120,6 +125,8 @@ Safety Rules
 - Keep payloads, headers, cookies, authorization values, and direct identities
   out of observability exports.
 - Keep exporter ownership in the application, not in DRF API Logger.
+- If using the first-party metrics endpoint, expose it only on an internal
+  protected path.
 - Prefer route patterns and URL names over raw URLs.
 - Use ``DRF_API_LOGGER_SKIP_URL_NAME`` or ``DRF_API_LOGGER_SKIP_NAMESPACE`` to
   avoid recording health checks, metrics endpoints, admin paths, and noisy

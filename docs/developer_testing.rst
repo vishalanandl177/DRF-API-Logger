@@ -41,6 +41,12 @@ Run the full Django suite:
 
    python -m django test tests --settings=tests.test_settings --verbosity=1
 
+Run the metrics and security signal tests:
+
+.. code-block:: bash
+
+   python -m django test tests.test_metrics --settings=tests.test_settings --verbosity=2
+
 Run coverage:
 
 .. code-block:: bash
@@ -87,6 +93,9 @@ Add or update tests for every behavior change. Cover the touched surface:
 - Observability helper behavior for Prometheus labels, OpenTelemetry span
   attributes, Sentry context, optional dependency safety, and high-cardinality
   label prevention.
+- First-party metrics behavior for safe labels, optional Prometheus dependency,
+  no-op disabled mode, system checks, middleware hooks, queue metrics, security
+  signals, and internal endpoint safety.
 - Policy gate behavior for full log drops, metadata-only logging, extra mask
   keys, signal/export gating, safe failures, and default backward compatibility.
 - Production diagnostics and doctor command behavior, including JSON output,

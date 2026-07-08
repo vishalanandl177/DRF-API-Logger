@@ -196,6 +196,38 @@ Prometheus labels are limited to route, URL name, app name, namespace, status
 class, and method. Request IDs and trace IDs are available for logs, traces, and
 Sentry context, not metrics labels.
 
+First-Party Logger Metrics
+--------------------------
+
+Use optional first-party metrics when the application wants DRF API Logger to
+report its own request-path overhead and background pipeline health:
+
+.. code-block:: bash
+
+   pip install "drf-api-logger[prometheus]"
+
+.. code-block:: python
+
+   DRF_API_LOGGER_METRICS_ENABLED = True
+   DRF_API_LOGGER_METRICS_GROUPS = ["logger", "pipeline"]
+
+API request metrics are separate and disabled by default to avoid duplicate
+instrumentation with Django, OpenTelemetry, or other HTTP metrics middleware:
+
+.. code-block:: python
+
+   DRF_API_LOGGER_API_METRICS_ENABLED = True
+
+Logger and pipeline metrics cover overhead, payload capture, masking,
+serialization, enqueue duration, queue depth/utilization, worker state, flush
+duration, storage write duration/failures, and dropped or skipped logs. API
+metrics add request count, duration, active requests, body-size histograms,
+slow-request counts, exception counts, and HTTP 429 throttle counts. Add the
+``profiling`` metrics group only when ``DRF_API_LOGGER_ENABLE_PROFILING`` is
+enabled and SQL/view/middleware summaries are useful.
+
+See :doc:`metrics` for endpoint setup, safe labels, and Prometheus operations.
+
 ASGI-Native Logging
 -------------------
 

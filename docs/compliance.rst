@@ -93,6 +93,26 @@ When exporting DRF API Logger signal data to observability systems:
 - Use Sentry context for debugging metadata, not payload storage.
 - Keep external exporter credentials outside DRF API Logger settings.
 
+Metrics and Security Signal Controls
+------------------------------------
+
+First-party metrics and security signals are disabled by default. When enabled,
+they are designed for low-cardinality operational aggregates, not payload or
+identity storage.
+
+For compliance-sensitive deployments:
+
+- Keep request IDs, trace IDs, user IDs, tenant IDs, IP addresses, object IDs,
+  raw URLs, query strings, headers, cookies, tokens, SQL queries, request
+  bodies, response bodies, and exception messages out of metric labels.
+- Use route patterns, URL names, method, and status class for metrics labels.
+- Keep the optional Prometheus endpoint internal-only and protected.
+- Keep security signals in detect-only mode.
+- Keep response-body inspection disabled unless there is a documented
+  operational need.
+- Keep request-body inspection bounded with a finite
+  ``DRF_API_LOGGER_SECURITY_BODY_INSPECTION["max_body_bytes"]`` value.
+
 Policy Controls
 ---------------
 

@@ -9,6 +9,7 @@ This directory contains the package test suite.
 - `test_asgi_middleware.py`: ASGI middleware capability, AsyncClient integration, async logging, and context isolation.
 - `test_models.py`: database model and Django admin behavior.
 - `test_signals.py`: event listeners, background queue processing, app startup, and worker stats.
+- `test_metrics.py`: optional metrics settings, safe labels, no-op recorder, system checks, middleware hooks, queue metrics, security signals, and endpoint safety.
 - `test_profiling.py`: profiling settings, SQL tracking, admin display, and diagnosis rules.
 - `test_backward_compat.py`: default behavior and payload compatibility.
 - `test_integration.py`: end-to-end middleware, signal, and database flows.

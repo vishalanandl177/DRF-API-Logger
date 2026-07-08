@@ -18,6 +18,7 @@ python -m pip install -r requirements-dev.txt
 ```bash
 python test_runner_simple.py
 python -m django test tests --settings=tests.test_settings --verbosity=1
+python -m django test tests.test_metrics --settings=tests.test_settings --verbosity=2
 python -m django test tests.test_asgi_middleware --settings=tests.test_settings --verbosity=2
 coverage run --source=drf_api_logger -m django test tests --settings=tests.test_settings --verbosity=1
 coverage report
@@ -60,6 +61,9 @@ This matrix is representative coverage, not the complete Django 4.2+ support lis
 - ASGI middleware behavior through direct async calls and Django `AsyncClient`.
 - Sensitive data masking for bodies, headers, responses, and URL query parameters.
 - Signal listener behavior and failure isolation.
+- First-party metrics settings, safe labels, optional Prometheus dependency,
+  system checks, middleware hooks, queue metrics, detect-only security signals,
+  and endpoint safety.
 - Background queue flushing, stats, shutdown, and database alias handling.
 - Admin display, filters, export, and profiling diagnosis.
 - Management commands such as `prune_api_logs`.

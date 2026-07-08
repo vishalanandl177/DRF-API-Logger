@@ -1,7 +1,7 @@
 DRF API Logger
 ==============
 
-.. image:: https://img.shields.io/badge/version-1.3.0-blue.svg
+.. image:: https://img.shields.io/badge/version-1.4.0-blue.svg
    :alt: Version
 .. image:: https://static.pepy.tech/personalized-badge/drf-api-logger?period=total&units=none&left_color=black&right_color=orange&left_text=Downloads%20Total
    :target: http://pepy.tech/project/drf-api-logger
@@ -25,6 +25,8 @@ profile SQL-heavy endpoints when enabled.
    quickstart
    asgi
    observability_integrations
+   metrics
+   security_signals
    policy_controls
    ai_readiness
    comparison_and_migration
@@ -46,6 +48,8 @@ Key Features
 - Per-request API profiling with auto-diagnosis of bottlenecks
 - Request correlation through request attributes, logging context, and signals
 - Optional Prometheus, OpenTelemetry, and Sentry helper functions with safe defaults
+- Optional first-party metrics for logger health, pipeline behavior, API timing,
+  and detect-only security signals
 - Optional endpoint-specific policy controls for logging, masking, payload
   stripping, and signal/export gating
 
@@ -385,6 +389,26 @@ Configuration Reference
      - str
      - ``None``
      - Dotted-path function to transform or drop log entries before queueing
+   * - ``DRF_API_LOGGER_METRICS_ENABLED``
+     - bool
+     - ``False``
+     - Enable optional first-party metrics recorder
+   * - ``DRF_API_LOGGER_METRICS_EXPORTER``
+     - str
+     - ``'prometheus'``
+     - Metrics exporter: ``'prometheus'`` or ``'none'``
+   * - ``DRF_API_LOGGER_API_METRICS_ENABLED``
+     - bool
+     - ``False``
+     - Enable API request count and duration metrics
+   * - ``DRF_API_LOGGER_SECURITY_METRICS_ENABLED``
+     - bool
+     - ``False``
+     - Enable detect-only suspicious activity metrics
+   * - ``DRF_API_LOGGER_METRICS_PROMETHEUS_ENDPOINT_ENABLED``
+     - bool
+     - ``False``
+     - Enable optional internal Prometheus exposition view
 
 .. note::
 

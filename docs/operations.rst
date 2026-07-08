@@ -7,7 +7,7 @@ retention, and health checks.
 Supported Runtime Matrix
 ------------------------
 
-DRF API Logger 1.3.0 supports:
+DRF API Logger 1.4.0 supports:
 
 - Python 3.10+
 - Django 4.2+
@@ -212,6 +212,49 @@ Recommended operating pattern:
 - Keep request and response payloads out of metrics, traces, and Sentry context.
 - Skip health checks and metrics endpoints with ``DRF_API_LOGGER_SKIP_URL_NAME``
   or ``DRF_API_LOGGER_SKIP_NAMESPACE``.
+
+First-Party Metrics Operations
+------------------------------
+
+The optional first-party metrics recorder is disabled by default. Enable it when
+the application wants DRF API Logger to report its own overhead and background
+pipeline health:
+
+.. code-block:: python
+
+   DRF_API_LOGGER_METRICS_ENABLED = True
+   DRF_API_LOGGER_METRICS_GROUPS = ["logger", "pipeline"]
+
+Prefer logger and pipeline metrics first. These show request-path overhead,
+payload capture and masking duration, queue backlog, queue utilization, dropped
+logs, processed logs, worker state, worker starts, flush duration, batch size,
+storage write duration, and storage write failures.
+
+Enable API metrics only when another Django or OpenTelemetry instrumenter is
+not already recording HTTP request count and duration:
+
+.. code-block:: python
+
+   DRF_API_LOGGER_API_METRICS_ENABLED = True
+
+If the optional Prometheus endpoint is enabled, mount it under an internal
+prefix and protect it at the network or authentication layer:
+
+.. code-block:: python
+
+   DRF_API_LOGGER_METRICS_PROMETHEUS_ENDPOINT_ENABLED = True
+
+The endpoint can reveal route names, latency distributions, error rates, queue
+health, and security signal counts. Do not expose it publicly.
+
+API metrics also expose active requests, request body size from
+``Content-Length``, non-streaming response body size, slow-request counts,
+exception counts, and HTTP 429 throttle counts. Keep them off when another
+instrumenter already owns HTTP server metrics.
+
+``DRF_LOGGER_QUEUE_MAX_SIZE`` remains a bulk insert batch threshold, not a hard
+queue capacity. Alert on backlog that grows continuously rather than treating
+the batch threshold as a maximum queue size.
 
 ASGI Operations
 ---------------
