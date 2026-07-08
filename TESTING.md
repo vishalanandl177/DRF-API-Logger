@@ -34,6 +34,9 @@ python test_runner_simple.py
 # Full Django test suite
 python -m django test tests --settings=tests.test_settings --verbosity=1
 
+# Metrics and security signal tests
+python -m django test tests.test_metrics --settings=tests.test_settings --verbosity=2
+
 # Coverage
 coverage run --source=drf_api_logger -m django test tests --settings=tests.test_settings --verbosity=1
 coverage report
@@ -66,6 +69,7 @@ make check-package
 - `tests/test_signals.py`: event listeners, background queue behavior, app startup, and worker stats.
 - `tests/test_diagnostics.py`: production doctor checks for logging mode, database readiness, queue status, payload limits, masking, and profiling risk.
 - `tests/test_observability.py`: dependency-free Prometheus, OpenTelemetry, and Sentry helper behavior.
+- `tests/test_metrics.py`: optional metrics settings, safe labels, no-op recorder, system checks, middleware metrics hooks, queue metrics, security signals, and endpoint safety.
 - `tests/test_policy.py`: logging policy decisions, endpoint rules, callable overrides, extra mask keys, and safe failure behavior.
 - `tests/test_profiling.py`: profiling settings, SQL tracking, admin diagnosis, and nullable profiling fields.
 - `tests/test_backward_compat.py`: default behavior when profiling is disabled.
@@ -141,6 +145,7 @@ Monitor `queue_backlog`, `dropped_count`, and `failed_insert_count` in productio
 - Add or update tests for every behavior change.
 - Watch new tests fail before implementing behavior.
 - Observability integrations must keep optional third-party packages out of install requirements and must not export headers, bodies, secrets, or high-cardinality IDs as metrics labels.
+- First-party metrics must stay disabled by default, keep Prometheus optional, reject unsafe labels, and keep security signals detect-only.
 - Keep tests deterministic and isolated.
 - Clean up signal listeners in `finally` blocks.
 - Use real Django/DRF behavior where practical.

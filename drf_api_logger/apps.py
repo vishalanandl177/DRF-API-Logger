@@ -24,6 +24,7 @@ class LoggerConfig(AppConfig):
         but only in the main process (to avoid duplication on autoreload).
         """
         global LOGGER_THREAD
+        from drf_api_logger.metrics import system_checks  # noqa: F401
 
         # Check if we should start the logger thread
         # In development with Django's runserver, RUN_MAIN prevents duplicate threads

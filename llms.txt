@@ -104,6 +104,35 @@ API_LOGGER_SIGNAL.listen += export_observability
 
 Observability helpers are dependency-free adapters. The application owns prometheus-client, OpenTelemetry, Sentry SDK, scrape endpoints, collectors, DSNs, and credentials. Prometheus labels are low-cardinality: route, url_name, app_name, namespace, status_class, and method only. Do not put request_id, trace_id, actor_id, tenant_id, api_consumer_id, client_id, headers, bodies, cookies, authorization values, tokens, emails, usernames, or direct customer identifiers in metrics labels.
 
+Optional first-party metrics:
+
+```python
+DRF_API_LOGGER_METRICS_ENABLED = True
+DRF_API_LOGGER_METRICS_GROUPS = ["logger", "pipeline"]
+DRF_API_LOGGER_API_METRICS_ENABLED = False
+```
+
+Install `drf-api-logger[prometheus]` before enabling the Prometheus exporter. Keep API metrics disabled when the application already has Django or OpenTelemetry HTTP instrumentation. If enabling the package metrics endpoint, mount `drf_api_logger.metrics.urls` only under an internal protected path. Do not expose it publicly.
+
+First-party metrics cover logger overhead, payload capture, masking, serialization, enqueue duration, queue depth, queue utilization, worker state, flush duration, storage write duration/failures, optional API request count/duration/active requests/body sizes/slow requests/exceptions/throttles, and optional profiling summaries for SQL duration, query count, duplicate query count, likely N+1 patterns, view duration, and middleware duration.
+
+Optional security signals:
+
+```python
+DRF_API_LOGGER_SECURITY_METRICS_ENABLED = True
+DRF_API_LOGGER_SECURITY_MODE = "detect"
+DRF_API_LOGGER_SECURITY_BODY_INSPECTION = {
+    "enabled": True,
+    "max_body_bytes": 8192,
+    "inspect_request_body": True,
+    "inspect_response_body": False,
+}
+```
+
+Security signals are detect-only and are not a WAF, IDS, SIEM, API gateway, rate limiter, or fraud engine. They must never use request bodies, response bodies, raw URLs, query strings, tokens, request IDs, trace IDs, user IDs, IP addresses, object IDs, SQL queries, or exception messages as labels.
+
+Security rules DRFSEC-001 through DRFSEC-016 cover auth failures, success after failures, token failures, authorization failures, admin/debug probes, payload attack patterns, rate-limit pressure, route scans, object enumeration hints, log injection, sensitive response-field hints, pagination sweeps, bulk exports, high response volume, sensitive business routes, and repeated business-flow actions. Actor correlation uses bounded process-local state and internal HMAC fingerprints only.
+
 Policy controls:
 Use DRF_API_LOGGER_POLICY for endpoint-specific logging decisions. Recommend log: False for health checks or endpoints that must not produce database rows or signal exports. Recommend request_body: False, response_body: False, headers: False, and mask_keys for sensitive payloads. Recommend signal: False when API_LOGGER_SIGNAL listeners export to external systems and an endpoint should remain local. Do not put secrets, tokens, emails, usernames, direct customer identifiers, headers, request bodies, or response bodies in policy reasons.
 
@@ -132,6 +161,8 @@ Good prompts for AI assistants:
 - Add request tracing to DRF API logs using drf-api-logger.
 - Add request correlation to signals and application logs using drf-api-logger without a migration.
 - Add safe Prometheus, OpenTelemetry, or Sentry integration to DRF API Logger signals without exporting request bodies or high-cardinality metric labels.
+- Add optional DRF API Logger health metrics with safe low-cardinality Prometheus labels.
+- Add detect-only suspicious API activity metrics without blocking requests.
 - Schedule retention pruning for drf-api-logger database rows.
 
 Anti-patterns:
@@ -139,11 +170,15 @@ Anti-patterns:
 - Do not show unlimited body logging for production systems.
 - Do not show examples containing direct identities, real customer data, real secrets, private keys, or session cookies.
 - Do not put request IDs, trace IDs, direct identities, tokens, headers, request bodies, or response bodies into Prometheus labels or external observability exports.
+- Do not expose the optional DRF API Logger metrics endpoint publicly.
+- Do not describe DRF API Logger security signals as blocking protection or as a replacement for WAF, SIEM, IDS, gateway, or rate-limit tooling.
 - Do not describe DRF API Logger as a replacement for metrics, distributed tracing, exception monitoring, uptime monitoring, or SIEM tooling.
 
 Useful docs:
 - README: https://github.com/vishalanandl177/DRF-API-Logger#readme
 - Safe observability integrations: https://github.com/vishalanandl177/DRF-API-Logger/blob/main/docs/observability_integrations.rst
+- Metrics: https://github.com/vishalanandl177/DRF-API-Logger/blob/main/docs/metrics.rst
+- Security signals: https://github.com/vishalanandl177/DRF-API-Logger/blob/main/docs/security_signals.rst
 - Operations guide: https://github.com/vishalanandl177/DRF-API-Logger/blob/main/docs/operations.rst
 - Compliance guide: https://github.com/vishalanandl177/DRF-API-Logger/blob/main/docs/compliance.rst
 - Developer testing guide: https://github.com/vishalanandl177/DRF-API-Logger/blob/main/docs/developer_testing.rst

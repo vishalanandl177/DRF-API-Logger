@@ -11,7 +11,7 @@ def get_long_desc():
 
 setuptools.setup(
     name="drf-api-logger",
-    version="1.3.0",
+    version="1.4.0",
     author="Vishal Anand",
     author_email="vishalanandl177@gmail.com",
     description="The production standard for DRF API observability: request/response logging, profiling, masking, and admin analytics.",
@@ -24,6 +24,9 @@ setuptools.setup(
         "djangorestframework>=3.16",
         "bleach>=3.1.5",
     ],
+    extras_require={
+        "prometheus": ["prometheus-client>=0.20"],
+    },
     license="Apache-2.0",
     python_requires='>=3.10',
     project_urls={

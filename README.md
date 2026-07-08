@@ -1,6 +1,6 @@
 # DRF API Logger
 
-[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/vishalanandl177/DRF-API-Logger)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/vishalanandl177/DRF-API-Logger)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org)
 [![Django](https://img.shields.io/badge/django-4.2%2B-green.svg)](https://djangoproject.com)
 [![DRF](https://img.shields.io/badge/djangorestframework-3.16%2B-orange.svg)](https://www.django-rest-framework.org)
@@ -69,6 +69,7 @@ DRF API Logger automatically captures and stores comprehensive API information:
 - **Request Correlation**: Opt-in request IDs, traceparent parsing, route metadata, logging context, and signal metadata without new database columns
 - **ASGI-Native Logging**: Supports Django's async middleware chain with concurrent request context isolation
 - **Safe Observability Integrations**: Optional helpers for Prometheus labels, OpenTelemetry span attributes, and Sentry context without hard dependencies
+- **First-Party Metrics & Security Signals**: Optional logger health, pipeline, API timing, and detect-only security metrics with safe labels
 - **Policy Controls**: Optional endpoint-specific rules for logging, masking, payload stripping, and signal/export gating
 
 ### 🌐 Community & Support
@@ -252,6 +253,8 @@ API_LOGGER_SIGNAL.listen -= log_to_file
 - [Copy-paste setup recipes](docs/quickstart.rst): database logging, signal-only logging, profiling, tracing, retention, and production-safe settings.
 - [ASGI-native logging](docs/asgi.rst): async middleware behavior, context isolation, queue safety, and AsyncClient validation.
 - [Safe observability integrations](docs/observability_integrations.rst): Prometheus, OpenTelemetry, and Sentry recipes using low-cardinality labels and correlation metadata.
+- [First-party metrics](docs/metrics.rst): optional Prometheus recorder, logger overhead, queue health, API metrics, safe labels, and endpoint guidance.
+- [Security signals](docs/security_signals.rst): detect-only suspicious activity metrics, bounded body inspection, rule IDs, and false-positive guidance.
 - [Policy controls](docs/policy_controls.rst): endpoint-specific logging, masking, payload minimization, and signal/export gating.
 - [AI assistant guidance](docs/ai_readiness.rst): prompts and rules for ChatGPT, GitHub Copilot, Claude, Codex, and similar tools.
 - [Comparison and migration guide](docs/comparison_and_migration.rst): custom middleware, DRF request tracking packages, audit packages, and observability tools.
@@ -575,6 +578,100 @@ class, and method. Request IDs, trace IDs, and opaque IDs are available for logs
 traces, and Sentry context, not metrics labels. The helpers do not import
 Prometheus, OpenTelemetry, or Sentry; applications own those dependencies and
 exporter configuration.
+
+### First-Party Metrics & Security Signals
+
+Enable optional package-owned metrics when you want DRF API Logger to report its
+own overhead and background pipeline health:
+
+```bash
+pip install "drf-api-logger[prometheus]"
+```
+
+```python
+DRF_API_LOGGER_METRICS_ENABLED = True
+DRF_API_LOGGER_METRICS_GROUPS = ["logger", "pipeline"]
+```
+
+Logger and pipeline metrics include request-path overhead, payload capture,
+masking, serialization, enqueue duration, queue depth, queue utilization,
+worker up/down state, worker starts, flush duration, batch size, storage write
+duration, dropped/skipped logs, and storage write failures.
+
+API request metrics are disabled separately to avoid duplicate instrumentation:
+
+```python
+DRF_API_LOGGER_API_METRICS_ENABLED = True
+```
+
+API metrics include request count, duration, active requests, request and
+non-streaming response body sizes, slow-request counts, exception counts, and
+HTTP 429 throttle counts using normalized route labels.
+
+Profiling metrics are available when profiling data exists:
+
+```python
+DRF_API_LOGGER_ENABLE_PROFILING = True
+DRF_API_LOGGER_METRICS_GROUPS = ["logger", "pipeline", "profiling"]
+```
+
+They summarize SQL duration, query count, duplicate query count, likely N+1
+signals, view/serialization duration, and middleware duration without exposing
+SQL text as labels.
+
+These metrics support practical dashboards and alerts: watch queue depth and
+storage failures to protect log reliability, compare request overhead against
+API latency, find SQL-heavy or likely N+1 endpoints, and alert on suspicious
+security rule matches such as auth failures, route scans, payload attacks, and
+bulk export behavior. See [First-party metrics](docs/metrics.rst) for PromQL
+examples.
+
+Security signals are detect-only and disabled by default:
+
+```python
+DRF_API_LOGGER_SECURITY_METRICS_ENABLED = True
+DRF_API_LOGGER_SECURITY_MODE = "detect"
+DRF_API_LOGGER_SECURITY_BODY_INSPECTION = {
+    "enabled": True,
+    "max_body_bytes": 8192,
+    "inspect_request_body": True,
+    "inspect_response_body": False,
+}
+```
+
+Rules `DRFSEC-001` through `DRFSEC-016` cover authentication failures,
+success-after-failure patterns, token failures, authorization failures,
+admin/debug probes, payload attack patterns, rate-limit pressure, route scans,
+object ID enumeration hints, log injection, sensitive response-field hints,
+pagination sweeps, bulk exports, high response volume, sensitive business
+routes, and repeated business-flow actions. Correlation uses bounded
+process-local state and internal HMAC actor fingerprints, never metric labels.
+
+Metric labels are allowlisted and low-cardinality. Do not use raw URLs, query
+strings, request IDs, trace IDs, user IDs, IPs, object IDs, tokens, headers,
+request bodies, response bodies, SQL queries, or exception messages as labels.
+Unresolved 404 paths use fixed `route="unresolved"` and
+`view_name="unresolved"` labels instead of raw paths.
+
+The optional Prometheus endpoint is off by default:
+
+```python
+DRF_API_LOGGER_METRICS_PROMETHEUS_ENDPOINT_ENABLED = True
+```
+
+Mount it only under an internal protected path:
+
+```python
+from django.urls import include, path
+
+urlpatterns = [
+    path("internal/drf-api-logger/", include("drf_api_logger.metrics.urls")),
+]
+```
+
+Run `python manage.py check` after enabling metrics. The checks report missing
+Prometheus dependencies, unsafe labels, endpoint exposure warnings, and unsafe
+security body-inspection limits.
 
 ## 📊 Programmatic Access
 
