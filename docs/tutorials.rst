@@ -5,6 +5,21 @@ These examples are safe to adapt for blog posts, Stack Overflow answers,
 internal runbooks, and video tutorials. They avoid direct identities and real
 secrets.
 
+Maintainer-Led Production Walkthrough
+--------------------------------------
+
+The `DRF API Logger production guide on CodersSecret
+<https://coderssecret.com/blog/drf-api-logger-django-rest-framework>`_ connects
+the setup below to masking, sampled profiling, request correlation, retention,
+and deployment trade-offs. It is maintained by the package author and should
+be read alongside this reference documentation when a team wants a guided
+end-to-end explanation.
+
+DRF API Logger is listed in Django REST Framework's `third-party packages
+documentation
+<https://www.django-rest-framework.org/community/third-party-packages/>`_.
+That listing is an ecosystem reference, not an endorsement or certification.
+
 Log All DRF API Requests Safely
 -------------------------------
 

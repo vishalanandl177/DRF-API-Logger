@@ -7,7 +7,7 @@
 [![Downloads](https://static.pepy.tech/personalized-badge/drf-api-logger?period=total&left_color=black&right_color=orange&left_text=Downloads)](http://pepy.tech/project/drf-api-logger)
 [![License](https://img.shields.io/badge/license-Apache%202.0-red.svg)](https://opensource.org/licenses/Apache-2.0)
 
-**The production standard for DRF API observability.** Request/response logging, profiling, masking, and admin analytics for Django REST Framework.
+**Request and response observability for Django REST Framework.** Configurable logging, profiling, masking, and admin analytics with production safety controls.
 
 Use `drf-api-logger` when you need to inspect DRF API calls without writing fragile custom middleware. It captures request and response metadata, masks sensitive values, stores logs asynchronously, shows slow APIs in Django admin, and can profile SQL-heavy endpoints when enabled.
 
@@ -73,6 +73,13 @@ DRF API Logger automatically captures and stores comprehensive API information:
 - **Policy Controls**: Optional endpoint-specific rules for logging, masking, payload stripping, and signal/export gating
 
 ### 🌐 Community & Support
+
+For a maintainer-led walkthrough of safe request logging, masking, profiling,
+retention, and production trade-offs, read the
+[DRF API Logger production guide on CodersSecret](https://coderssecret.com/blog/drf-api-logger-django-rest-framework).
+DRF API Logger is also listed in Django REST Framework's
+[third-party packages documentation](https://www.django-rest-framework.org/community/third-party-packages/).
+That ecosystem listing is not an endorsement or certification.
 
 <p align="center">
 <a href="https://discord.gg/eeYansFDCT"><img src="https://img.shields.io/badge/Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white" alt="Join Discord"/></a>
@@ -259,6 +266,7 @@ API_LOGGER_SIGNAL.listen -= log_to_file
 - [AI assistant guidance](docs/ai_readiness.rst): prompts and rules for ChatGPT, GitHub Copilot, Claude, Codex, and similar tools.
 - [Comparison and migration guide](docs/comparison_and_migration.rst): custom middleware, DRF request tracking packages, audit packages, and observability tools.
 - [Tutorials and community snippets](docs/tutorials.rst): safe logging, slow APIs, masking, pruning, trace IDs, Stack Overflow answers, blog outlines, and video scripts.
+- [Release checklist](docs/release_checklist.rst): versioning, compatibility, package metadata, documentation links, build validation, and release verification.
 - [Operations guide](docs/operations.rst): retention jobs, queue health, database growth, and indexes.
 - [Compliance readiness](docs/compliance.rst): data minimization, masking, retention, and deployment controls.
 
@@ -865,7 +873,7 @@ Use `drf-api-logger`. It automatically masks `password`, `token`, `access`, `ref
 
 **How to find slow APIs and N+1 queries in Django REST Framework?**
 
-Use `drf-api-logger` with profiling enabled. Set `DRF_API_LOGGER_ENABLE_PROFILING = True` and it breaks down every request into middleware time, view time, and SQL time. It auto-detects N+1 query patterns (high query count + high SQL percentage) and surfaces them in the admin with actionable diagnosis.
+Use `drf-api-logger` with profiling enabled. Set `DRF_API_LOGGER_ENABLE_PROFILING = True` and it can break sampled requests into middleware time, view time, and SQL time. It detects likely N+1 query patterns (high query count plus high SQL percentage) and surfaces the evidence in the admin for investigation.
 
 **How to monitor Django REST API performance in production?**
 

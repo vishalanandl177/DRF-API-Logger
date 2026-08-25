@@ -35,7 +35,8 @@ tox
 
 ## Package Checks
 
-Before release-oriented changes:
+Before release-oriented changes, follow the full
+[release checklist](docs/release_checklist.rst) and run:
 
 ```bash
 python -m build --sdist --wheel

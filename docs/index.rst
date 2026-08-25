@@ -10,8 +10,9 @@ DRF API Logger
    :target: https://opensource.org/licenses/Apache-2.0
    :alt: License
 
-The production standard for DRF API observability: request/response logging,
-profiling, masking, and admin analytics for Django REST Framework.
+Request and response observability for Django REST Framework: configurable
+logging, profiling, masking, and admin analytics with production safety
+controls.
 
 Use DRF API Logger when you need to inspect API calls without writing fragile
 custom middleware. It captures request and response metadata, masks sensitive
@@ -34,6 +35,7 @@ profile SQL-heavy endpoints when enabled.
    operations
    compliance
    developer_testing
+   release_checklist
 
 Key Features
 ------------
