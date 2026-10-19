@@ -773,6 +773,39 @@ class TestAPILoggerMiddleware(TestCase):
         finally:
             API_LOGGER_SIGNAL.listen -= listener
 
+    @override_settings(DRF_API_LOGGER_SIGNAL=True)
+    @patch('drf_api_logger.middleware.api_logger_middleware.resolve')
+    def test_compound_credential_names_are_masked_in_logged_api_and_body(self, mock_resolve):
+        mock_resolve.return_value.namespace = None
+        mock_resolve.return_value.app_name = None
+        mock_resolve.return_value.url_name = 'test'
+        mock_resolve.return_value.route = 'api/test/'
+        mock_resolve.return_value.func = self.get_response
+
+        from drf_api_logger import API_LOGGER_SIGNAL
+        signal_data = []
+
+        def listener(**kwargs):
+            signal_data.append(kwargs)
+
+        API_LOGGER_SIGNAL.listen += listener
+        try:
+            middleware = APILoggerMiddleware(get_response=self.get_response)
+            request = self.factory.post(
+                '/api/test/?access_token=access-secret',
+                data=json.dumps({"refresh_token": "refresh-secret", "username": "john"}),
+                content_type='application/json',
+            )
+            response = middleware(request)
+
+            self.assertEqual(response.status_code, 200)
+            self.assertIn('access_token=***FILTERED***', signal_data[0]['api'])
+            self.assertNotIn('access-secret', signal_data[0]['api'])
+            self.assertEqual(signal_data[0]['body']['refresh_token'], '***FILTERED***')
+            self.assertEqual(signal_data[0]['body']['username'], 'john')
+        finally:
+            API_LOGGER_SIGNAL.listen -= listener
+
     @override_settings(
         DRF_API_LOGGER_DATABASE=True,
         DRF_API_LOGGER_SIGNAL=True,

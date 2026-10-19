@@ -208,6 +208,53 @@ class TestUtilityFunctions(TestCase):
         self.assertIn('refresh=***FILTERED***', masked)
         self.assertIn('data=xyz', masked)
 
+    def test_mask_sensitive_data_masks_compound_credential_keys(self):
+        """Test compound credential names built from sensitive keys are masked"""
+        data = {
+            'access_token': 'access-secret',
+            'refresh_token': 'refresh-secret',
+            'id_token': 'id-secret',
+            'user_password': 'password-secret',
+            'token_type': 'Bearer',
+            'accessibility': 'public',
+        }
+
+        masked = mask_sensitive_data(data)
+
+        self.assertEqual(masked['access_token'], '***FILTERED***')
+        self.assertEqual(masked['refresh_token'], '***FILTERED***')
+        self.assertEqual(masked['id_token'], '***FILTERED***')
+        self.assertEqual(masked['user_password'], '***FILTERED***')
+        self.assertEqual(masked['token_type'], 'Bearer')
+        self.assertEqual(masked['accessibility'], 'public')
+
+    def test_mask_sensitive_data_string_url_masks_compound_credential_params(self):
+        """Test compound credential query parameters are masked in URL strings"""
+        url = (
+            'https://api.example.com/oauth/callback'
+            '?access_token=access-secret&refresh_token=refresh-secret&state=xyz'
+        )
+
+        masked = mask_sensitive_data(url, mask_api_parameters=True)
+
+        self.assertIn('access_token=***FILTERED***', masked)
+        self.assertIn('refresh_token=***FILTERED***', masked)
+        self.assertIn('state=xyz', masked)
+        self.assertNotIn('access-secret', masked)
+        self.assertNotIn('refresh-secret', masked)
+
+    def test_mask_sensitive_data_accepts_compound_extra_sensitive_keys(self):
+        """Test extra sensitive keys also match compound key names"""
+        data = {
+            'user_session': 'session-secret',
+            'session_count': 3,
+        }
+
+        masked = mask_sensitive_data(data, extra_sensitive_keys=['session'])
+
+        self.assertEqual(masked['user_session'], '***FILTERED***')
+        self.assertEqual(masked['session_count'], 3)
+
     def test_mask_sensitive_data_non_dict(self):
         """Test mask_sensitive_data with non-dict input"""
         # String without mask_api_parameters
