@@ -231,21 +231,101 @@ class TestBackgroundThread(TestCase):
         self.assertEqual(thread.get_status()['inserted_count'], 3)
 
     @patch('drf_api_logger.insert_log_into_database.APILogsModel')
-    def test_database_insertion_operational_error(self, mock_model):
-        """Test database insertion with OperationalError"""
+    @patch('builtins.print')
+    def test_database_insertion_operational_error(self, mock_print, mock_model):
+        """Test database insertion with OperationalError drops the batch instead of raising"""
         from django.db.utils import OperationalError
         from drf_api_logger.insert_log_into_database import InsertLogIntoDatabase
-        
+
         mock_manager = Mock()
         mock_model.objects = mock_manager
-        mock_manager.using.return_value.bulk_create.side_effect = OperationalError()
-        
+        error = OperationalError('server closed the connection unexpectedly')
+        mock_manager.using.return_value.bulk_create.side_effect = error
+
         thread = InsertLogIntoDatabase()
         bulk_items = [Mock()]
-        
-        with self.assertRaises(Exception) as context:
-            thread._insert_into_data_base(bulk_items)
-        self.assertIn("Model does not exist", str(context.exception))
+
+        # Should not raise: raising would end the worker thread
+        thread._insert_into_data_base(bulk_items)
+        mock_print.assert_called_with('DRF API LOGGER EXCEPTION:', error)
+        self.assertEqual(thread.get_status()['failed_insert_count'], 1)
+
+    @override_settings(DRF_LOGGER_QUEUE_MAX_SIZE=1)
+    @patch('drf_api_logger.insert_log_into_database.APILogsModel')
+    @patch('builtins.print')
+    def test_worker_keeps_running_after_operational_error(self, mock_print, mock_model):
+        """Test the worker thread inserts the next batch after a batch failed with OperationalError"""
+        from django.db.utils import OperationalError
+        from drf_api_logger.insert_log_into_database import InsertLogIntoDatabase
+
+        first_insert_failed = threading.Event()
+        second_insert_done = threading.Event()
+        inserted_batches = []
+
+        def bulk_create(bulk_item):
+            if not first_insert_failed.is_set():
+                first_insert_failed.set()
+                # As on a connection the database ended, e.g. after a restart
+                raise OperationalError('server closed the connection unexpectedly')
+            inserted_batches.append(bulk_item)
+            second_insert_done.set()
+
+        mock_manager = Mock()
+        mock_model.objects = mock_manager
+        mock_manager.using.return_value.bulk_create.side_effect = bulk_create
+
+        log_data = {
+            'api': '/api/test/',
+            'method': 'GET',
+            'status_code': 200,
+            'headers': '{}',
+            'body': '',
+            'response': '{}',
+            'client_ip_address': '127.0.0.1',
+            'execution_time': 0.1,
+            'added_on': timezone.now()
+        }
+
+        thread = InsertLogIntoDatabase()
+        thread.daemon = True
+        thread.start()
+        try:
+            thread.put_log_data(log_data)
+            self.assertTrue(first_insert_failed.wait(timeout=5))
+
+            thread.put_log_data(log_data)
+            self.assertTrue(
+                second_insert_done.wait(timeout=5),
+                'The worker thread inserted no batch after the failed one',
+            )
+
+            self.assertTrue(thread.is_alive())
+            self.assertEqual(len(inserted_batches), 1)
+            status = thread.get_status()
+            self.assertEqual(status['failed_insert_count'], 1)
+            self.assertEqual(status['inserted_count'], 1)
+            self.assertEqual(status['queue_backlog'], 0)
+        finally:
+            thread.shutdown()
+            thread.join(timeout=5)
+
+    @patch('drf_api_logger.insert_log_into_database.close_old_connections')
+    @patch('drf_api_logger.insert_log_into_database.APILogsModel')
+    def test_database_insertion_closes_old_connections_first(self, mock_model, mock_close_old_connections):
+        """Test a connection the database ended, or past CONN_MAX_AGE, is not reused for the insert"""
+        from drf_api_logger.insert_log_into_database import InsertLogIntoDatabase
+
+        calls = []
+        mock_close_old_connections.side_effect = lambda: calls.append('close_old_connections')
+        mock_manager = Mock()
+        mock_model.objects = mock_manager
+        mock_manager.using.return_value.bulk_create.side_effect = lambda bulk_item: calls.append('bulk_create')
+
+        thread = InsertLogIntoDatabase()
+        thread._insert_into_data_base([Mock()])
+
+        self.assertEqual(calls, ['close_old_connections', 'bulk_create'])
+        self.assertEqual(thread.get_status()['inserted_count'], 1)
 
     @patch('drf_api_logger.insert_log_into_database.APILogsModel')
     @patch('builtins.print')

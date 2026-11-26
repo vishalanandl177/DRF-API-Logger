@@ -5,7 +5,7 @@ from queue import Empty, Queue
 from importlib import import_module
 from django.conf import settings
 from threading import Thread, Event, Lock
-from django.db.utils import OperationalError
+from django.db import close_old_connections
 from drf_api_logger.metrics.recorder import get_recorder
 from drf_api_logger.models import APILogsModel
 
@@ -166,14 +166,17 @@ class InsertLogIntoDatabase(Thread):
         """
         Performs the actual insertion of log items into the database.
 
+        A batch that fails to insert, for example on a database error, is counted,
+        reported and dropped, so that the worker thread keeps running.
+
         Args:
             bulk_item (list): A list of APILogsModel instances to insert.
-
-        Raises:
-            Exception: If the model doesn't exist or another database error occurs.
         """
         flush_start = time.perf_counter()
         try:
+            # Like Django does for each request: don't reuse a connection the
+            # database has ended (e.g. on a restart) or that is past CONN_MAX_AGE.
+            close_old_connections()
             APILogsModel.objects.using(self.DRF_API_LOGGER_DEFAULT_DATABASE).bulk_create(bulk_item)
             self._increment_stat('_inserted_count', len(bulk_item))
             try:
@@ -184,19 +187,6 @@ class InsertLogIntoDatabase(Thread):
                 self._record_queue_metrics(recorder)
             except Exception:
                 pass
-        except OperationalError:
-            self._increment_stat('_failed_insert_count', len(bulk_item))
-            try:
-                recorder = get_recorder()
-                recorder.increment_storage_write_failure('database', 'OperationalError')
-                recorder.observe_storage_write('database', time.perf_counter() - flush_start)
-            except Exception:
-                pass
-            raise Exception("""
-            DRF API LOGGER EXCEPTION
-            Model does not exist.
-            Did you forget to migrate?
-            """)
         except Exception as e:
             self._increment_stat('_failed_insert_count', len(bulk_item))
             try:
@@ -205,7 +195,7 @@ class InsertLogIntoDatabase(Thread):
                 recorder.observe_storage_write('database', time.perf_counter() - flush_start)
             except Exception:
                 pass
-            # Logs other unexpected exceptions to the console
+            # Logs the exception to the console and drops the batch
             print('DRF API LOGGER EXCEPTION:', e)
 
     def _import_custom_handler(self, handler_path):
